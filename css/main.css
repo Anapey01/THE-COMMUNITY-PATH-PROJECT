@@ -1,55 +1,238 @@
 /* ==================================== */
-/* == CSS STYLES (Style Block)       == */
+/* == CSS STYLES (Style Block)         == */
+/* == Author: [Your Name], Date: 2025  == */
 /* ==================================== */
-body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
-.card { max-width: 500px; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+/* === Base Styles === */
+body { 
+    font-family: 'Inter', sans-serif !important; 
+    background-color: #f7f9fb !important; 
+    margin: 0;
+    padding: 0;
+}
+
+/* === Card Container === */
+.card { 
+    max-width: 500px !important; 
+    display: flex !important; 
+    flex-direction: column !important; 
+    justify-content: space-between !important;
+    height: auto !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    border-radius: 1rem !important;
+    border: 1px solid #e0e7ff !important; /* Soft indigo border */
+}
+
+/* === Tag Pills: Clickable tags for filtering/interactions === */
 .tag-pill {
-    cursor: pointer;
-    transition: all 0.15s;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    user-select: none !important;
 }
+
+.tag-pill:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* === Path Finder Container: Main interactive area === */
 #path-finder-container {
-    /* FIX: Set a minimum height to prevent the card from collapsing and jumping when content changes */
-    min-height: 450px; 
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+    min-height: 300px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    flex-grow: 1 !important;
+    padding: 1rem 0 !important;
 }
+
+/* === Conversation Log: Chat history area === */
 #conversation-log {
-    max-height: 250px;
-    overflow-y: auto;
-    border: 1px solid #e5e7eb;
-    background-color: #f9fafb;
+    max-height: 250px !important;
+    overflow-y: auto !important;
+    border: 1px solid #e5e7eb !important;
+    background-color: #f9fafb !important;
+    margin-top: 0 !important;
+    padding: 0.75rem !important;
+    border-radius: 0.75rem !important;
+    flex-shrink: 0 !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #d1d5db #f3f4f6 !important;
 }
-.user-bubble { background-color: #e0f2fe; }
-.ai-bubble { background-color: #fef3c7; }
-/* Responsive Aspect Ratio for Video Embed */
-.video-container {
-    position: relative;
-    width: 100%;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
-    height: 0;
-    overflow: hidden;
-    margin-top: 1.5rem;
+
+/* Custom Scrollbar for Conversation Log */
+#conversation-log::-webkit-scrollbar {
+    width: 6px !important;
 }
-.video-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 0.75rem;
+#conversation-log::-webkit-scrollbar-track {
+    background: #f3f4f6 !important;
+    border-radius: 3px !important;
 }
-.phase-intro {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    border-left: 4px solid #3b82f6;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    margin-bottom: 1.5rem;
+#conversation-log::-webkit-scrollbar-thumb {
+    background: #d1d5db !important;
+    border-radius: 3px !important;
 }
-.phase-tip {
-    background-color: #fef3c7;
-    border-left: 4px solid #f59e0b;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    font-style: italic;
+#conversation-log::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af !important;
+}
+
+/* === Bubbles: Chat message bubbles, targeted via JS classes (.user-bubble, .ai-bubble) === */
+#path-finder-container .user-bubble, 
+#conversation-log .user-bubble { 
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+    border-radius: 1rem !important;
+    padding: 0.75rem 1rem !important;
+    margin: 0.25rem 0 !important;
+    max-width: 85% !important;
+}
+
+#path-finder-container .ai-bubble, 
+#conversation-log .ai-bubble { 
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+    border-radius: 1rem !important;
+    padding: 0.75rem 1rem !important;
+    margin: 0.25rem 0 !important;
+    max-width: 85% !important;
+}
+
+/* === Initial Context: Intro message at start of path finder === */
+#path-finder-container .initial-context {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+    border-radius: 0.75rem !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid #bfdbfe !important;
+    margin-bottom: 0.5rem !important;
+}
+
+#path-finder-container .initial-context h2 {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #1e40af !important;
+    margin-bottom: 1rem !important;
+}
+
+#path-finder-container .initial-context p {
+    font-size: 1rem !important;
+    color: #374151 !important;
+    line-height: 1.5 !important;
+    margin-bottom: 0.75rem !important;
+}
+
+#path-finder-container .initial-context p:last-of-type {
+    font-weight: 600 !important;
+    color: #3730a3 !important;
+}
+
+/* === Video Containers: Responsive embed for YouTube/Vimeo, overrides inline styles === */
+#path-finder-container .video-container {
+    position: relative !important;
+    width: 100% !important;
+    padding-bottom: 56.25% !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin-top: 0.5rem !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Note: Border-radius on iframe may not be respected in all browsers. For best results, wrap iframe in a div with overflow:hidden and border-radius. */
+#path-finder-container .video-container iframe {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0.75rem !important;
+    border: none !important;
+}
+
+/* === Phase Intros & Questions: Section headers and prompts === */
+#path-finder-container .phase-intro {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    border-left: 4px solid #3b82f6 !important;
+    padding: 1rem !important;
+    border-radius: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+#path-finder-container .question-section {
+    background: #f8fafc !important;
+    border-left: 3px solid #64748b !important;
+    border-radius: 0.5rem !important;
+    padding: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* === Reflection List: Displays user or AI-generated reflection points === */
+#path-finder-container .reflection-list {
+    background: #f1f5f9 !important;
+    border-radius: 0.5rem !important;
+    padding: 1rem !important;
+    margin: 0.5rem 0 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+#path-finder-container .reflection-list li {
+    margin-bottom: 0.25rem !important;
+    color: #475569 !important;
+}
+
+/* === Short Sections: Utility class for compact content blocks === */
+#path-finder-container .short-section {
+    margin-bottom: 0.5rem !important;
+    padding: 0.5rem !important;
+}
+
+/* === Profile Output: Summary of user profile generated at the end === */
+#profile-output {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
+    border: 2px solid #c084fc !important;
+    border-radius: 1rem !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    margin: 1rem 0 !important;
+}
+
+#profile-output p {
+    margin: 0.5rem 0 !important;
+}
+
+/* === Spinner: Loading animation for async actions. Consider adding aria-busy for accessibility === */
+#path-finder-container .animate-spin {
+    animation: spin 1s linear infinite !important;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* === Buttons: Enhance hover effects for navigation and action buttons (#next-button, #back-button, #generate-profile-btn) === */
+#next-button, #back-button, #generate-profile-btn {
+    transition: all 0.15s ease-in-out !important;
+    border: none !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+#next-button:hover:not(:disabled), #generate-profile-btn:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+#back-button:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+}
+
+/* === Responsive: Styles for screens <= 640px (mobile devices) === */
+@media (max-width: 640px) {
+    .card { margin: 1rem !important; padding: 1rem !important; }
+    #path-finder-container { min-height: 250px !important; }
+    #path-finder-container .initial-context, #path-finder-container .phase-intro { padding: 1rem !important; }
+    h1 { font-size: 1.75rem !important; }
 }
