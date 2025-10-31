@@ -25,8 +25,13 @@ const THRESHOLDS = {
   SPECIFICITY: 0.45,
   COMPLETENESS: 0.50,
   SHORT_LENGTH: 8,
-  CONFUSION_KEYWORDS: ["maybe", "kinda", "I don't know", "not sure", "stuff", "things", "etc"]
+  CONFUSION_KEYWORDS: ["maybe", "kinda", "I don't know", "not sure", "stuff", "things", "etc"],
+  READINESS_THRESHOLD: 0.70,  // New: Min score to proceed without intervention
+  MAX_INTERVENTIONS: 3        // New: Max nudges per question to avoid laborious loops
 };
+
+// Track interventions per question
+let interventionCounts = new Map(); // questionId -> count
 
 // Helpers
 function wordsCount(text) {
@@ -52,6 +57,25 @@ function keywordOverlap(textA, textB) {
   return overlap / Math.max(wordsA.size, 1);
 }
 
+// New: Readiness Assessor (lightweight LLM call)
+async function assessReadiness(questionTitle, studentAnswer) {
+  const systemInstruction = `You are an expert educational assessor for Ghanaian students. Score the student's answer (0.0-1.0) on how well it addresses the question. Criteria: specific, complete, culturally relevant, insightful. Respond ONLY with JSON: {"readiness_score": 0.85, "reason": "Brief reason (under 50 words)"}. Use neutral Ghanaian context.`;
+  const userQuery = `Question: "${questionTitle}"\nAnswer: "${studentAnswer}"`;
+
+  try {
+    const response = await callGeminiAPI(systemInstruction, userQuery);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return { readiness_score: parsed.readiness_score || 0, reason: parsed.reason || '' };
+    }
+    return { readiness_score: 0.5, reason: 'Parsing failed' };
+  } catch (error) {
+    console.error('Readiness assessment failed:', error);
+    return { readiness_score: 0.5, reason: 'Error' };
+  }
+}
+
 // Input Analyzer (no embeddings in browser; fallback to keywords)
 async function analyzeInput(studentMessage, currentQuestion) {
   const length = wordsCount(studentMessage);
@@ -72,12 +96,30 @@ async function analyzeInput(studentMessage, currentQuestion) {
 
   const intent = studentMessage.trim().endsWith('?') ? 'question' : 'answer';
 
-  return { length, specificity_score, relevance_score, completeness_score, confusion_signals, intent };
+  // Integrate readiness for finer control
+  const readiness = await assessReadiness(currentQuestion || '', studentMessage);
+  const adjusted_completeness = completeness_score * 0.7 + readiness.readiness_score * 0.3;
+
+  return { 
+    length, 
+    specificity_score, 
+    relevance_score, 
+    completeness_score: adjusted_completeness, 
+    confusion_signals, 
+    intent,
+    readiness_score: readiness.readiness_score,
+    readiness_reason: readiness.reason
+  };
 }
 
-// Decision Module
+// Decision Module (now factors in readiness)
 function decideAction(signals, currentQuestion) {
   if (signals.intent === 'question') return { action: 'no_intervene' };
+
+  // High readiness overrides other thresholds
+  if (signals.readiness_score >= THRESHOLDS.READINESS_THRESHOLD) {
+    return { action: 'minimal_validation' };
+  }
 
   if (signals.relevance_score < THRESHOLDS.RELEVANCE) {
     return { action: 're_anchor' };
@@ -90,7 +132,7 @@ function decideAction(signals, currentQuestion) {
   return { action: 'minimal_validation' };
 }
 
-// Micro-instruction Composer (tuned re_anchor for better educational/cultural context)
+// Micro-instruction Composer (tuned for neutral Ghanaian context)
 function composeMicroInstruction(action, studentMessage, sessionMemory, currentQuestion) {
   const ms = {
     runtime_instruction: "Do not invent facts or give external data.",
@@ -101,7 +143,7 @@ function composeMicroInstruction(action, studentMessage, sessionMemory, currentQ
     },
     student_message: studentMessage,
     output_format: "single_question",
-    max_words: 20
+    max_words: 25  // Increased slightly to reduce cutoffs
   };
 
   const actionInstructions = {
@@ -109,13 +151,13 @@ function composeMicroInstruction(action, studentMessage, sessionMemory, currentQ
     minimal_validation: "Provide a very short validation/acknowledgement using the student's words. <= 8 words.",
     invite_expand: "Invite the student to give one specific example. Ask one open question only, <= 15 words. No examples from assistant.",
     clarify: "Ask one concise clarifying question focused on what's unclear. Use student's own terms. <= 20 words.",
-    re_anchor: "Re-anchor to the earlier question or topic by restating it briefly in a culturally relevant way (e.g., tying to community stories in Ghana). Then ask a single question linking the student's response back to the core curiosity or problem. Keep it warm and student-centered. Two short lines max."
+    re_anchor: "Re-anchor to the earlier question or topic by restating it briefly in a neutral Ghanaian community context (e.g., tying to shared values like unity or resilience across Ghana). Then ask a single question linking the student's response back to the core curiosity or problem. Keep it warm and student-centered. Two short lines max."
   };
 
   ms.runtime_instruction += ` ${actionInstructions[action] || actionInstructions.minimal_validation}`;
   ms.output_format = action === 'minimal_validation' || action === 'no_intervene' ? 'one_line_validation' : 
                      action === 're_anchor' ? 'two_lines_reanchor' : 'single_question';
-  ms.max_words = { minimal_validation: 8, invite_expand: 15, re_anchor: 25 }[action] || 20;
+  ms.max_words = { minimal_validation: 8, invite_expand: 15, re_anchor: 30 }[action] || 25;  // Adjusted for completeness
 
   return ms;
 }
@@ -142,15 +184,21 @@ function updateMemory(memory, studentMessage, inferredLens = null) {
   return memory;
 }
 
-// Output Filter
+// Improved Output Filter (sentence-aware to avoid cutoffs)
 function filterLLMOutput(text, microInstruction) {
   let cleaned = (text || '').replace(/\n+/g, ' ').trim();
-  const words = cleaned.split(/\s+/);
-  if (words.length > microInstruction.max_words) {
-    cleaned = words.slice(0, microInstruction.max_words).join(' ');
-    if (!/[.?!]$/.test(cleaned)) cleaned += "...";
+  // Split into sentences
+  const sentences = cleaned.split(/[.!?]+/).map(s => s.trim() + '.').filter(s => s.length > 10);
+  let wordCount = 0;
+  let filtered = '';
+  for (let sentence of sentences) {
+    const sentWords = wordsCount(sentence);
+    if (wordCount + sentWords > microInstruction.max_words) break;
+    filtered += (filtered ? ' ' : '') + sentence;
+    wordCount += sentWords;
   }
-  return cleaned;
+  if (!/[.?!]$/.test(filtered)) filtered += "...";
+  return filtered || cleaned.substring(0, microInstruction.max_words) + '...';
 }
 
 // Updated LLM Runner using Gemini
@@ -161,6 +209,7 @@ async function callLLM(runtimePayload) {
   const payload = {
     contents: [{ parts: [{ text: fullPrompt }] }],
     systemInstruction: { parts: [{ text: runtimePayload.system_message }] },
+    generationConfig: { maxOutputTokens: 100 }  // Added to encourage fuller responses
   };
 
   const maxRetries = 3;
@@ -212,7 +261,7 @@ async function handleStudentMessage(studentMessage, session) {
   const micro = composeMicroInstruction(action, studentMessage, session.memory, session.current_question);
 
   const runtimePayload = {
-    system_message: "You are a supportive peer mentor assistant for Ghanaian students exploring community issues. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, warm, and culturally relevant (e.g., reference community stories or local contexts). Do not invent facts.",
+    system_message: "You are a supportive peer mentor assistant for Ghanaian students exploring community issues. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, warm, and use neutral Ghanaian English (e.g., reference shared values like community unity or resilience across Ghana's diverse groups). Do not use specific ethnic languages or references. Do not invent facts.",
     micro_instruction: micro,
     memory_snapshot: micro.memory_snapshot,
     student_message: studentMessage
@@ -484,6 +533,9 @@ function renderStep1Question() {
     const isFirstInPhase1A = currentStepIndex === 0;
     const isFirstInPhase1B = currentStepIndex === discoveryQuestions.length;
     
+    // Reset intervention count on new question render
+    interventionCounts.set(q.id, 0);
+    
     if (isFirstInPhase1A && phaseIntroSubStep === 0) {
         nextButton.textContent = "Start Questions";
         backButton.disabled = false;
@@ -635,19 +687,34 @@ function renderStep() {
 }
 
 // Updated threshold check using scaffolding analyzer (returns true if intervention needed)
-async function checkThresholds(text, currentQuestion) {
+async function checkThresholds(text, currentQuestion, qId) {
   const signals = await analyzeInput(text, currentQuestion);
   const decision = decideAction(signals, currentQuestion);
-  console.log(`KPI → ${decision.action === 'minimal_validation' ? 'PASSED' : 'FAILED (' + decision.action + ')'}`);
+  
+  // Check intervention limit
+  const currentCount = interventionCounts.get(qId) || 0;
+  const forceProceed = currentCount >= THRESHOLDS.MAX_INTERVENTIONS;
+  
+  console.log(`KPI → ${decision.action === 'minimal_validation' ? 'PASSED (Readiness: ' + signals.readiness_score + ')' : 'FAILED (' + decision.action + ', Count: ' + (currentCount + 1) + ')'}`);
+  
+  if (forceProceed) {
+    console.log('Max interventions reached; forcing proceed.');
+    return false;  // Proceed even if not ideal
+  }
+  
   return decision.action !== 'minimal_validation' && decision.action !== 'no_intervene';
 }
 
-// Updated nudge using scaffolding handler
-async function displayAINudge(userText, currentQuestion) {
+// Updated nudge using scaffolding handler (increments count)
+async function displayAINudge(userText, currentQuestion, qId) {
   const session = window.session;
   session.current_question = currentQuestion;
   const result = await handleStudentMessage(userText, session);
   await saveSession(); // Persist memory
+
+  // Increment intervention count
+  const currentCount = interventionCounts.get(qId) || 0;
+  interventionCounts.set(qId, currentCount + 1);
 
   appendToLog('mentor', null, true);
   removeTypingIndicator();
@@ -779,7 +846,7 @@ async function handleNext() {
         window.session.current_question = q.title;
         await saveSession();
         
-        const needsMentor = await checkThresholds(answer, q.title);
+        const needsMentor = await checkThresholds(answer, q.title, q.id);
         appendToLog('user', answer);
 
         if (needsMentor) {
@@ -788,7 +855,7 @@ async function handleNext() {
                 textarea.value = '';
                 textarea.focus();
             }
-            awaitingFollowup = await displayAINudge(answer, q.title); 
+            awaitingFollowup = await displayAINudge(answer, q.title, q.id); 
             return;
         }
 
