@@ -1,6 +1,6 @@
 // --- GEMINI API Configuration (Mandatory) ---
 const apiKey = "AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc"; 
-const LLM_MODEL = "gemini-2.5-flash-preview-09-2025";
+const LLM_MODEL = "gemini-2.5-flash";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent?key=${apiKey}`;
 
 // --- PRD Compliance: Firebase Setup ---
