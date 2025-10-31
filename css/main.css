@@ -1,0 +1,55 @@
+/* ==================================== */
+/* == CSS STYLES (Style Block)       == */
+/* ==================================== */
+body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+.card { max-width: 500px; }
+.tag-pill {
+    cursor: pointer;
+    transition: all 0.15s;
+}
+#path-finder-container {
+    /* FIX: Set a minimum height to prevent the card from collapsing and jumping when content changes */
+    min-height: 450px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+#conversation-log {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+}
+.user-bubble { background-color: #e0f2fe; }
+.ai-bubble { background-color: #fef3c7; }
+/* Responsive Aspect Ratio for Video Embed */
+.video-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    overflow: hidden;
+    margin-top: 1.5rem;
+}
+.video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0.75rem;
+}
+.phase-intro {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-left: 4px solid #3b82f6;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+.phase-tip {
+    background-color: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font-style: italic;
+}
