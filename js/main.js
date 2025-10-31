@@ -197,12 +197,29 @@ function filterLLMOutput(text, microInstruction) {
     filtered += (filtered ? ' ' : '') + sentence;
     wordCount += sentWords;
   }
-  if (!/[.?!]$/.test(filtered)) filtered += "...";
-  return filtered || cleaned.substring(0, microInstruction.max_words) + '...';
+  if (!/[.?!]$/.test(filtered)) filtered += "?";  // End with ? for questions to feel natural
+  return filtered || cleaned.substring(0, microInstruction.max_words) + '?';  // Fallback ends with ?
+}
+
+// New: Smart Rephrase for Fallbacks (adds context/meaning without answering)
+async function rephraseCurrentQuestion(currentQuestion, studentMessage) {
+  const systemInstruction = `You are a warm, supportive mentor for Ghanaian students. Rephrase this question to provide context and meaning, weaving in the student's recent thought warmly without answering it or adding facts. Keep neutral Ghanaian English, evoke emotions/values, end with a question. Max 25 words.`;
+  const userQuery = `Original Question: "${currentQuestion}"\nStudent's Recent Thought: "${studentMessage}"\nRephrase to guide gently.`;
+
+  try {
+    const response = await callGeminiAPI(systemInstruction, userQuery);
+    return filterLLMOutput(response, { max_words: 25 });  // Apply light filter
+  } catch (error) {
+    console.error('Rephrase failed:', error);
+    // Graceful template fallback
+    const summary = studentMessage.split('.')[0].trim();
+    const simpleRephrase = `Building on your insight about ${summary}, how does this connect to your personal values or emotions in your community?`;
+    return simpleRephrase;
+  }
 }
 
 // Updated LLM Runner using Gemini
-async function callLLM(runtimePayload) {
+async function callLLM(runtimePayload, isFallbackCheck = false) {
   const systemPrompt = runtimePayload.system_message + "\n\nMicro-instruction: " + JSON.stringify(runtimePayload.micro_instruction);
   const fullPrompt = `${systemPrompt}\n\nStudent: ${runtimePayload.student_message}`;
   
@@ -240,20 +257,21 @@ async function callLLM(runtimePayload) {
         console.warn("API returned empty response, retrying...");
         continue;
       } else {
-        return "Hmm, could you tell me a bit more about that?";
+        // Flag for rephrase instead of generic fallback
+        return "REPHRASE_NEEDED";
       }
 
     } catch (error) {
       if (i === maxRetries - 1) {
         console.error('LLM call failed:', error);
-        return "Understood.";
+        return "REPHRASE_NEEDED";  // Use rephrase on errors too
       }
     }
   }
-  return "Failed to get a response.";
+  return "REPHRASE_NEEDED";
 }
 
-// Full Handler
+// Full Handler (now handles rephrase flag)
 async function handleStudentMessage(studentMessage, session) {
   const signals = await analyzeInput(studentMessage, session.current_question);
   const decision = decideAction(signals, session.current_question);
@@ -268,6 +286,13 @@ async function handleStudentMessage(studentMessage, session) {
   };
 
   let llmText = await callLLM(runtimePayload);
+  
+  // New: If rephrase flag, generate contextual rephrase instead of "..."
+  if (llmText === "REPHRASE_NEEDED") {
+    console.warn('Fallback triggered; generating contextual rephrase.');
+    llmText = await rephraseCurrentQuestion(session.current_question, studentMessage);
+  }
+  
   llmText = filterLLMOutput(llmText, micro);
 
   session.memory = updateMemory(session.memory, studentMessage, session.current_lens);
@@ -422,6 +447,9 @@ function appendToLog(sender, message, isTyping = false) {
     if (isTyping) {
         logItem.id = 'ai-typing-indicator';
         logItem.innerHTML = `<span class="font-semibold">${isUser ? 'You' : 'Mentor'}:</span> <span class="animate-pulse">...Thinking...</span>`;
+    } else if (!message || message.trim() === '') {
+        // Avoid empty logs
+        logItem.innerHTML = `<span class="font-semibold">Mentor:</span> <span class="text-gray-400">Reflecting...</span>`;
     } else {
         logItem.innerHTML = `<span class="font-semibold">${isUser ? 'You' : 'Mentor'}:</span> ${message}`;
     }
@@ -1005,7 +1033,7 @@ function updateNavigation() {
     }
 }
 
-// Original callGeminiAPI (kept for summaries)
+// Original callGeminiAPI (kept for summaries and rephrases)
 async function callGeminiAPI(systemInstruction, userQuery) {
     const payload = {
         contents: [{ parts: [{ text: userQuery }] }],
