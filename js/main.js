@@ -90,7 +90,7 @@ function decideAction(signals, currentQuestion) {
   return { action: 'minimal_validation' };
 }
 
-// Micro-instruction Composer
+// Micro-instruction Composer (tuned re_anchor for better educational/cultural context)
 function composeMicroInstruction(action, studentMessage, sessionMemory, currentQuestion) {
   const ms = {
     runtime_instruction: "Do not invent facts or give external data.",
@@ -109,7 +109,7 @@ function composeMicroInstruction(action, studentMessage, sessionMemory, currentQ
     minimal_validation: "Provide a very short validation/acknowledgement using the student's words. <= 8 words.",
     invite_expand: "Invite the student to give one specific example. Ask one open question only, <= 15 words. No examples from assistant.",
     clarify: "Ask one concise clarifying question focused on what's unclear. Use student's own terms. <= 20 words.",
-    re_anchor: "Re-anchor to the earlier question or topic. Show the question/topic in one short line, then ask how the student's point relates. Two short lines."
+    re_anchor: "Re-anchor to the earlier question or topic by restating it briefly in a culturally relevant way (e.g., tying to community stories in Ghana). Then ask a single question linking the student's response back to the core curiosity or problem. Keep it warm and student-centered. Two short lines max."
   };
 
   ms.runtime_instruction += ` ${actionInstructions[action] || actionInstructions.minimal_validation}`;
@@ -212,7 +212,7 @@ async function handleStudentMessage(studentMessage, session) {
   const micro = composeMicroInstruction(action, studentMessage, session.memory, session.current_question);
 
   const runtimePayload = {
-    system_message: "You are a supportive peer mentor assistant. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, and do not invent facts.",
+    system_message: "You are a supportive peer mentor assistant for Ghanaian students exploring community issues. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, warm, and culturally relevant (e.g., reference community stories or local contexts). Do not invent facts.",
     micro_instruction: micro,
     memory_snapshot: micro.memory_snapshot,
     student_message: studentMessage
@@ -301,19 +301,22 @@ const initialScreen = {
     buttonText: "I Understand. Let's Start." 
 };
 
-// 🧩 PHASE 1A: DISCOVERY (8 Questions)
+// 🧩 PHASE 1A: DISCOVERY (Updated Structure - 9 Questions for Cultural Relevance)
+// New Q1: Igniting Curiosity
+// Original Q1 becomes Q2, etc. (shifts to 9 total)
 const discoveryQuestions = [
-    { id: 'q1a1_notice', title: "Question 1: How did you first notice this problem? (Through experience, observation, or from someone else?)", placeholder: "Describe the moment or story that brought this to your attention.", helpText: "Share the specific trigger that made it personal.", minWords: 10 },
-    { id: 'q1a2_affected', title: "Question 2: Who do you see being most affected by this issue?", placeholder: "Name specific groups like 'street vendors in Accra' or 'rural farmers'.", helpText: "Focus on the people closest to the pain.", minWords: 10 },
-    { id: 'q1a3_personal', title: "Question 3: What makes this issue important to you personally?", placeholder: "How does it frustrate, anger, or inspire you?", helpText: "Connect it to your emotions or values.", minWords: 10 },
-    { id: 'q1a4_example', title: "Question 4: Can you describe a specific situation or example that made you realize it's a serious problem?", placeholder: "Tell a short story from your community.", helpText: "Stories make the issue vivid and real.", minWords: 10 },
-    { id: 'q1a5_efforts', title: "Question 5: Have you seen anyone or any group trying to fix this problem before? What did they do?", placeholder: "Mention local initiatives, NGOs, or community efforts.", helpText: "This shows what's been tried and gaps.", minWords: 10 },
-    { id: 'q1a6_causes', title: "Question 6: What do you think causes this problem in your community?", placeholder: "Is it poverty, lack of resources, or cultural factors?", helpText: "Pinpoint the everyday triggers.", minWords: 10 },
-    { id: 'q1a7_future', title: "Question 7: If this problem continues, what do you think will happen in the next few years?", placeholder: "Describe the worsening impact on people or places.", helpText: "Imagine the ripple effects.", minWords: 10 },
-    { id: 'q1a8_wish', title: "Question 8: What do you wish could change about it?", placeholder: "What small or big shift would make a difference?", helpText: "This sparks your vision for better.", minWords: 10 },
+    { id: 'q1a1_curiosity', title: "Question 1: What problem have you noticed in your community that ignites a curiosity in you?", placeholder: "Describe a challenge like youth unemployment in your area or waste in local markets that sparks your interest.", helpText: "Think of issues close to home in Ghana that make you wonder 'Why?' or 'How can we fix this?'", minWords: 10 },
+    { id: 'q1a2_notice', title: "Question 2: How did you first notice this problem? (Through experience, observation, or from someone else?)", placeholder: "Describe the moment or story that brought this to your attention.", helpText: "Share the specific trigger that made it personal, like a conversation at a trotro stop.", minWords: 10 },
+    { id: 'q1a3_affected', title: "Question 3: Who do you see being most affected by this issue?", placeholder: "Name specific groups like 'street vendors in Accra' or 'rural farmers'.", helpText: "Focus on the people closest to the pain, like families in your neighborhood.", minWords: 10 },
+    { id: 'q1a4_personal', title: "Question 4: What makes this issue important to you personally?", placeholder: "How does it frustrate, anger, or inspire you?", helpText: "Connect it to your emotions or values, rooted in your Ghanaian context.", minWords: 10 },
+    { id: 'q1a5_example', title: "Question 5: Can you describe a specific situation or example that made you realize it's a serious problem?", placeholder: "Tell a short story from your community.", helpText: "Stories make the issue vivid and real, like a local market tale.", minWords: 10 },
+    { id: 'q1a6_efforts', title: "Question 6: Have you seen anyone or any group trying to fix this problem before? What did they do?", placeholder: "Mention local initiatives, NGOs, or community efforts.", helpText: "This shows what's been tried and gaps, perhaps a church group or youth club.", minWords: 10 },
+    { id: 'q1a7_causes', title: "Question 7: What do you think causes this problem in your community?", placeholder: "Is it poverty, lack of resources, or cultural factors?", helpText: "Pinpoint the everyday triggers, like seasonal farming challenges.", minWords: 10 },
+    { id: 'q1a8_future', title: "Question 8: If this problem continues, what do you think will happen in the next few years?", placeholder: "Describe the worsening impact on people or places.", helpText: "Imagine the ripple effects on your community.", minWords: 10 },
+    { id: 'q1a9_wish', title: "Question 9: What do you wish could change about it?", placeholder: "What small or big shift would make a difference?", helpText: "This sparks your vision for better, inspired by Ghanaian resilience.", minWords: 10 },
 ];
 
-// ⚙️ PHASE 1B: DEFINING (10 Questions)
+// ⚙️ PHASE 1B: DEFINING (10 Questions - Unchanged)
 const definingQuestions = [
     { id: 'q1b1_what', category: 'What', title: "What exactly is the problem or issue you've identified?", placeholder: "Be precise, e.g., 'flooding in low-lying areas during rains'.", helpText: "Define the core issue clearly.", minWords: 10 },
     { id: 'q1b2_where', category: 'Where', title: "Where does it happen most often? (Community, workplaces, schools, etc.)", placeholder: "Specific spots like 'informal markets in Kumasi'.", helpText: "Narrow the location for focus.", minWords: 10 },
@@ -347,8 +350,8 @@ let profileGenerated = false;
 let container, nextButton, backButton, currentStepSpan, conversationLog;
 
 const phase1AIntro = {
-    purpose: "To help the participant identify a real problem in their community, how they came to notice it, and how it affects people around them.",
-    facilitatorFlow: "Now that we've seen how global goals connect to real issues, let's focus on what you've personally noticed in your community."
+    purpose: "To help the participant identify a real problem in their community that sparks curiosity, how they came to notice it, and how it affects people around them in a culturally relevant way.",
+    facilitatorFlow: "Now that we've seen how global goals connect to real issues, let's focus on what you've personally noticed in your community that ignites your curiosity."
 };
 
 const phase1BIntro = {
@@ -384,7 +387,7 @@ function removeTypingIndicator() {
     }
 }
 
-// --- RENDER FUNCTIONS --- (unchanged from original)
+// --- RENDER FUNCTIONS --- (Updated for new Phase 1A structure)
 function renderInitialContext() {
     console.log("Rendering context screen, substep:", contextSubStep);
     currentStepSpan.textContent = '1';
@@ -487,7 +490,7 @@ function renderStep1Question() {
         container.innerHTML = `
             <div class="phase-intro short-section space-y-4 text-center">
                 <h2 class="text-2xl font-bold text-indigo-800">🧩 PHASE 1A: DISCOVERY</h2>
-                <h3 class="text-xl font-semibold text-indigo-700">Understanding the Problem Context</h3>
+                <h3 class="text-xl font-semibold text-indigo-700">Igniting Curiosity in Your Community</h3>
                 
                 <div class="bg-indigo-50 p-4 rounded-xl border-2 border-indigo-200 text-left">
                     <h3 class="text-lg font-semibold text-indigo-800 mb-2">🎯 Purpose:</h3>
@@ -521,7 +524,7 @@ function renderStep1Question() {
     }
 
     let phaseHeader = currentStepIndex < discoveryQuestions.length 
-        ? '🧩 PHASE 1A: DISCOVERY – UNDERSTANDING THE PROBLEM CONTEXT'
+        ? '🧩 PHASE 1A: DISCOVERY – IGNITING CURIOSITY IN YOUR COMMUNITY'
         : '⚙️ PHASE 1B: DEFINING THE PROBLEM AND ITS IMPACT';
     
     let categoryHTML = q.category ? `<p class="text-sm font-semibold text-gray-600 mb-1">${q.category}</p>` : '';
@@ -667,7 +670,7 @@ async function generateFinalProblemSummary(...problemAnswers) {
 
     const summaryPrompt = `
         Summarize the student's problem into ONE concise, validating summary (max 2 sentences). 
-        The summary must integrate the following 18 data points into a clear narrative:
+        The summary must integrate the following data points into a clear narrative:
         
         ${dataPoints}
         
