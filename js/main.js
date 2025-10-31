@@ -1,6 +1,6 @@
 // --- GEMINI API Configuration (Mandatory) ---
 const apiKey = "AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc"; 
-const LLM_MODEL = "gemini-2.5-flash-preview-09-2025";
+const LLM_MODEL = "gemini-2.5-flash";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent?key=${apiKey}`;
 
 // --- PRD Compliance: Firebase Setup ---
@@ -32,6 +32,9 @@ const THRESHOLDS = {
 
 // Track interventions per question
 let interventionCounts = new Map(); // questionId -> count
+
+// Track if expecting refined response after nudge
+let expectingRefined = false;
 
 // Helpers
 function wordsCount(text) {
@@ -148,7 +151,7 @@ function composeMicroInstruction(action, studentMessage, sessionMemory, currentQ
 
   const actionInstructions = {
     no_intervene: "Student asked a question. Do not intervene. Only reply with a brief encouragement if necessary (e.g., 'Good question.').",
-    minimal_validation: "Provide a very short validation/acknowledgement using the student's words. <= 8 words.",
+    minimal_validation: "Provide a very short validation/acknowledgement using the student's words. <= 8 words. Do not ask any questions.",
     invite_expand: "Invite the student to give one specific example. Ask one open question only, <= 15 words. No examples from assistant.",
     clarify: "Ask one concise clarifying question focused on what's unclear. Use student's own terms. <= 20 words.",
     re_anchor: "Re-anchor to the earlier question or topic by restating it briefly in a neutral Ghanaian community context (e.g., tying to shared values like unity or resilience across Ghana). Then ask a single question linking the student's response back to the core curiosity or problem. Keep it warm and student-centered. Two short lines max."
@@ -218,6 +221,22 @@ async function rephraseCurrentQuestion(currentQuestion, studentMessage) {
   }
 }
 
+// New: Transition Echo Generator
+async function generateTransitionEcho(priorAnswer, nextQuestionTitle) {
+  const systemInstruction = `You are a warm, supportive mentor for Ghanaian students. Create a brief transition: Echo one key phrase from the student's answer warmly, then rephrase the next question naturally to build continuity. Always stay on the current/next question; do not jump to later topics like solutions, causes, or efforts. Keep neutral Ghanaian English, max 25 words. End with the rephrased question.`;
+  const userQuery = `Prior answer: "${priorAnswer}"\nNext question: "${nextQuestionTitle}"`;
+
+  try {
+    const response = await callGeminiAPI(systemInstruction, userQuery);
+    return filterLLMOutput(response, { max_words: 25 });
+  } catch (error) {
+    console.error('Transition echo failed:', error);
+    // Graceful template fallback
+    const keyPhrase = priorAnswer.split(' ').slice(0, 3).join(' ');
+    return `Thank you for sharing your thoughts on ${keyPhrase}. ${nextQuestionTitle.charAt(0).toLowerCase() + nextQuestionTitle.slice(1)}?`;
+  }
+}
+
 // Updated LLM Runner using Gemini
 async function callLLM(runtimePayload, isFallbackCheck = false) {
   const systemPrompt = runtimePayload.system_message + "\n\nMicro-instruction: " + JSON.stringify(runtimePayload.micro_instruction);
@@ -279,7 +298,7 @@ async function handleStudentMessage(studentMessage, session) {
   const micro = composeMicroInstruction(action, studentMessage, session.memory, session.current_question);
 
   const runtimePayload = {
-    system_message: "You are a supportive peer mentor assistant for Ghanaian students exploring community issues. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, warm, and use neutral Ghanaian English (e.g., reference shared values like community unity or resilience across Ghana's diverse groups). Do not use specific ethnic languages or references. Do not invent facts.",
+    system_message: "You are a supportive peer mentor assistant for Ghanaian students exploring community issues. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, warm, and use neutral Ghanaian English (e.g., reference shared values like community unity or resilience across Ghana's diverse groups). Do not use specific ethnic languages or references. Do not invent facts. Always stay on the current question; do not jump to later topics like solutions, causes, or efforts.",
     micro_instruction: micro,
     memory_snapshot: micro.memory_snapshot,
     student_message: studentMessage
@@ -747,7 +766,42 @@ async function displayAINudge(userText, currentQuestion, qId) {
   appendToLog('mentor', null, true);
   removeTypingIndicator();
   appendToLog('mentor', result.assistant_reply);
-  return result.action !== 'minimal_validation' && result.action !== 'no_intervene'; // True if still awaiting
+}
+
+// Proceed to next with echo or summary
+async function proceedToNext(answer) {
+  answers[currentStepIndex] = answer;
+  const wasLast = currentStepIndex === questions.length - 1;
+  currentStepIndex++;
+  if (currentStepIndex === discoveryQuestions.length) {
+    phaseIntroSubStep = 0;
+    currentPhase = '1B';
+  }
+  interventionCounts.set(questions[currentStepIndex - 1].id, 0); // Reset for next question
+
+  if (wasLast) {
+    if (conversationLog.children.length === 1 && conversationLog.children[0].textContent.includes('mentor will appear')) {
+      conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Conversation log cleared.</p>`;
+    }
+    appendToLog('mentor', null, true);
+    const problemSummary = await generateFinalProblemSummary(...answers.slice(0, questions.length)); 
+    removeTypingIndicator();
+    appendToLog('mentor', problemSummary);
+    
+    setTimeout(() => {
+      renderStep();
+    }, 4000);
+  } else {
+    const nextQ = questions[currentStepIndex];
+    appendToLog('mentor', null, true);
+    const echo = await generateTransitionEcho(answer, nextQ.title);
+    removeTypingIndicator();
+    appendToLog('mentor', echo);
+    
+    setTimeout(() => {
+      renderStep();
+    }, 1500);
+  }
 }
 
 async function generateFinalProblemSummary(...problemAnswers) {
@@ -874,76 +928,48 @@ async function handleNext() {
         window.session.current_question = q.title;
         await saveSession();
         
-        const needsMentor = await checkThresholds(answer, q.title, q.id);
-        appendToLog('user', answer);
+        // Clear log if placeholder
+        if (conversationLog.children.length === 1 && conversationLog.children[0].textContent.includes('mentor will appear')) {
+             conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Conversation log cleared.</p>`;
+        }
 
+        appendToLog('user', answer);
+        
+        if (expectingRefined) {
+            // This is a refined response after nudge
+            const needsMore = await checkThresholds(answer, q.title, q.id);
+            if (needsMore) {
+                // Still needs clarification
+                expectingRefined = true;
+                if (textarea) {
+                    textarea.value = '';
+                    textarea.focus();
+                }
+                await displayAINudge(answer, q.title, q.id);
+                return;
+            } else {
+                // Refined response is good; proceed
+                expectingRefined = false;
+                await proceedToNext(answer);
+                return;
+            }
+        }
+        
+        // Normal case: check if needs initial nudge
+        const needsMentor = await checkThresholds(answer, q.title, q.id);
         if (needsMentor) {
-            awaitingFollowup = true;
+            expectingRefined = true;
             if (textarea) {
                 textarea.value = '';
                 textarea.focus();
             }
-            awaitingFollowup = await displayAINudge(answer, q.title, q.id); 
-            return;
-        }
-
-        if (!awaitingFollowup && conversationLog.children.length === 1 && conversationLog.children[0].textContent.includes('mentor will appear')) {
-             conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Conversation log cleared.</p>`;
-        }
-
-        if (awaitingFollowup) {
-            awaitingFollowup = false;
-            appendToLog('mentor', null, true);
-            const closeoutMsg = await callGeminiAPI(
-                `You are a supportive mentor. Write one short sentence praising their clarity and transitioning to the next question.`,
-                `The refined answer was: "${answer}"`
-            );
-            removeTypingIndicator();
-            appendToLog('mentor', closeoutMsg);
-
-            setTimeout(() => {
-                answers[currentStepIndex] = answer;
-                currentStepIndex++;
-                if (currentStepIndex === discoveryQuestions.length) {
-                    phaseIntroSubStep = 0;
-                    currentPhase = '1B';
-                }
-                renderStep();
-            }, 1500);
+            await displayAINudge(answer, q.title, q.id);
             return;
         }
         
-        answers[currentStepIndex] = answer;
-        const isCompletingStep1 = currentStepIndex === questions.length - 1;
-
-        if (isCompletingStep1) {
-            if (conversationLog.children.length === 1 && conversationLog.children[0].textContent.includes('mentor will appear')) {
-                 conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Conversation log cleared.</p>`;
-            }
-            
-            appendToLog('mentor', null, true);
-            const problemSummary = await generateFinalProblemSummary(...answers.slice(0, questions.length)); 
-            removeTypingIndicator();
-            appendToLog('mentor', problemSummary);
-            
-            setTimeout(() => {
-                currentStepIndex++;
-                renderStep();
-            }, 4000);
-            
-            if (textarea) textarea.value = '';
-            return;
-
-        } else {
-            currentStepIndex++;
-            if (currentStepIndex === discoveryQuestions.length) {
-                phaseIntroSubStep = 0;
-                currentPhase = '1B';
-            }
-            renderStep();
-            if (textarea) textarea.value = '';
-            return;
-        }
+        // Initial response is good; proceed
+        await proceedToNext(answer);
+        return;
     } else if (currentStepIndex === questions.length) {
         if (selectedSkills.length < 3) {
             alert("Please select at least 3 skill tags before continuing.");
@@ -984,7 +1010,7 @@ function handleBack() {
             currentStepIndex = discoveryQuestions.length - 1;
         }
         phaseIntroSubStep = -1;
-        awaitingFollowup = false;
+        expectingRefined = false;
         conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Your conversation with the mentor will appear here.</p>`;
         renderStep();
         return;
@@ -1001,7 +1027,7 @@ function handleBack() {
             // Decrement to previous question
             currentStepIndex--;
         }
-        awaitingFollowup = false;
+        expectingRefined = false;
         conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Your conversation with the mentor will appear here.</p>`;
         renderStep();
         return;
@@ -1011,7 +1037,7 @@ function handleBack() {
     if (currentStepIndex === questions.length) {
         currentStepIndex--;
         phaseIntroSubStep = -1;
-        awaitingFollowup = false;
+        expectingRefined = false;
         conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Your conversation with the mentor will appear here.</p>`;
         renderStep();
         return;
