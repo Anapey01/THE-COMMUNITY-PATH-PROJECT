@@ -6,7 +6,7 @@ const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_M
 // --- PRD Compliance: Firebase Setup ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Global variables MUST be used as mandated by the environment
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -18,26 +18,274 @@ let db;
 let auth;
 let userId;
 
-async function initializeFirebase() {
-    try {
-        if (Object.keys(firebaseConfig).length) {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
+// --- STUDENT-LED SCAFFOLDING INTEGRATION ---
+// Tunable thresholds
+const THRESHOLDS = {
+  RELEVANCE: 0.50,
+  SPECIFICITY: 0.45,
+  COMPLETENESS: 0.50,
+  SHORT_LENGTH: 8,
+  CONFUSION_KEYWORDS: ["maybe", "kinda", "I don't know", "not sure", "stuff", "things", "etc"]
+};
 
-            if (initialAuthToken) {
-                await signInWithCustomToken(auth, initialAuthToken);
-            } else {
-                await signInAnonymously(auth);
-            }
-            userId = auth.currentUser.uid;
-            console.log("Firebase initialized successfully");
-        } else {
-            console.log("Firebase config not provided, running in standalone mode");
+// Helpers
+function wordsCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function cosine(a, b) {
+  if (!a || !b || a.length !== b.length) return 0.0;
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB)) || 0.0;
+}
+
+function keywordOverlap(textA, textB) {
+  const wordsA = new Set(textA.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+  const wordsB = textB.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  let overlap = 0;
+  wordsB.forEach(w => { if (wordsA.has(w)) overlap++; });
+  return overlap / Math.max(wordsA.size, 1);
+}
+
+// Input Analyzer (no embeddings in browser; fallback to keywords)
+async function analyzeInput(studentMessage, currentQuestion) {
+  const length = wordsCount(studentMessage);
+  const lower = studentMessage.toLowerCase();
+
+  const concreteIndicators = (studentMessage.match(/\b(e\.g\.|for example|because|when|where|who|how|numbers|[0-9]+)\b/gi) || []).length;
+  const specificity_score = Math.min(1, (concreteIndicators + length / 15) / 2);
+
+  let relevance_score = 1.0;
+  if (currentQuestion) {
+    relevance_score = keywordOverlap(studentMessage, currentQuestion);
+  }
+
+  const normalizedLength = Math.min(1, length / 30);
+  const completeness_score = 0.5 * normalizedLength + 0.5 * specificity_score;
+
+  const confusion_signals = THRESHOLDS.CONFUSION_KEYWORDS.some(k => lower.includes(k));
+
+  const intent = studentMessage.trim().endsWith('?') ? 'question' : 'answer';
+
+  return { length, specificity_score, relevance_score, completeness_score, confusion_signals, intent };
+}
+
+// Decision Module
+function decideAction(signals, currentQuestion) {
+  if (signals.intent === 'question') return { action: 'no_intervene' };
+
+  if (signals.relevance_score < THRESHOLDS.RELEVANCE) {
+    return { action: 're_anchor' };
+  }
+  if (signals.completeness_score < THRESHOLDS.COMPLETENESS || signals.specificity_score < THRESHOLDS.SPECIFICITY || signals.confusion_signals) {
+    if (signals.length <= THRESHOLDS.SHORT_LENGTH) return { action: 'invite_expand' };
+    return { action: 'clarify' };
+  }
+
+  return { action: 'minimal_validation' };
+}
+
+// Micro-instruction Composer
+function composeMicroInstruction(action, studentMessage, sessionMemory, currentQuestion) {
+  const ms = {
+    runtime_instruction: "Do not invent facts or give external data.",
+    context_anchor: currentQuestion || (sessionMemory?.topic_focus) || "No explicit question",
+    memory_snapshot: {
+      topic_focus: sessionMemory?.topic_focus || null,
+      focus_points: sessionMemory?.focus_points?.slice(-3) || []
+    },
+    student_message: studentMessage,
+    output_format: "single_question",
+    max_words: 20
+  };
+
+  const actionInstructions = {
+    no_intervene: "Student asked a question. Do not intervene. Only reply with a brief encouragement if necessary (e.g., 'Good question.').",
+    minimal_validation: "Provide a very short validation/acknowledgement using the student's words. <= 8 words.",
+    invite_expand: "Invite the student to give one specific example. Ask one open question only, <= 15 words. No examples from assistant.",
+    clarify: "Ask one concise clarifying question focused on what's unclear. Use student's own terms. <= 20 words.",
+    re_anchor: "Re-anchor to the earlier question or topic. Show the question/topic in one short line, then ask how the student's point relates. Two short lines."
+  };
+
+  ms.runtime_instruction += ` ${actionInstructions[action] || actionInstructions.minimal_validation}`;
+  ms.output_format = action === 'minimal_validation' || action === 'no_intervene' ? 'one_line_validation' : 
+                     action === 're_anchor' ? 'two_lines_reanchor' : 'single_question';
+  ms.max_words = { minimal_validation: 8, invite_expand: 15, re_anchor: 25 }[action] || 20;
+
+  return ms;
+}
+
+// Memory Updater
+function summarizeTextShort(text) {
+  const words = text?.trim().split(/\s+/) || [];
+  if (words.length <= 12) return text?.trim() || '';
+  return words.slice(0, 12).join(' ') + '...';
+}
+
+function updateMemory(memory, studentMessage, inferredLens = null) {
+  if (!memory) return { focus_points: [], open_questions: [], clarified_terms: {}, student_name: null, current_lens: null, topic_focus: null, last_student_response: null };
+  const summary = summarizeTextShort(studentMessage);
+
+  memory.last_student_response = summary;
+  if (inferredLens) memory.current_lens = inferredLens;
+
+  if (summary && !memory.focus_points.includes(summary)) {
+    memory.focus_points.push(summary);
+    if (memory.focus_points.length > 5) memory.focus_points.shift();
+  }
+
+  return memory;
+}
+
+// Output Filter
+function filterLLMOutput(text, microInstruction) {
+  let cleaned = (text || '').replace(/\n+/g, ' ').trim();
+  const words = cleaned.split(/\s+/);
+  if (words.length > microInstruction.max_words) {
+    cleaned = words.slice(0, microInstruction.max_words).join(' ');
+    if (!/[.?!]$/.test(cleaned)) cleaned += "...";
+  }
+  return cleaned;
+}
+
+// Updated LLM Runner using Gemini
+async function callLLM(runtimePayload) {
+  const systemPrompt = runtimePayload.system_message + "\n\nMicro-instruction: " + JSON.stringify(runtimePayload.micro_instruction);
+  const fullPrompt = `${systemPrompt}\n\nStudent: ${runtimePayload.student_message}`;
+  
+  const payload = {
+    contents: [{ parts: [{ text: fullPrompt }] }],
+    systemInstruction: { parts: [{ text: runtimePayload.system_message }] },
+  };
+
+  const maxRetries = 3;
+  let delay = 1000;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 && i < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+          continue;
         }
+        throw new Error(`API call failed with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const raw = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (raw && raw.length > 5) {
+        return raw;
+      } else if (i < maxRetries - 1) {
+        console.warn("API returned empty response, retrying...");
+        continue;
+      } else {
+        return "Hmm, could you tell me a bit more about that?";
+      }
+
     } catch (error) {
-        console.error("Firebase initialization or sign-in failed:", error);
+      if (i === maxRetries - 1) {
+        console.error('LLM call failed:', error);
+        return "Understood.";
+      }
     }
+  }
+  return "Failed to get a response.";
+}
+
+// Full Handler
+async function handleStudentMessage(studentMessage, session) {
+  const signals = await analyzeInput(studentMessage, session.current_question);
+  const decision = decideAction(signals, session.current_question);
+  const action = decision.action;
+  const micro = composeMicroInstruction(action, studentMessage, session.memory, session.current_question);
+
+  const runtimePayload = {
+    system_message: "You are a supportive peer mentor assistant. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, and do not invent facts.",
+    micro_instruction: micro,
+    memory_snapshot: micro.memory_snapshot,
+    student_message: studentMessage
+  };
+
+  let llmText = await callLLM(runtimePayload);
+  llmText = filterLLMOutput(llmText, micro);
+
+  session.memory = updateMemory(session.memory, studentMessage, session.current_lens);
+
+  return { assistant_reply: llmText, action, signals, micro_instruction: micro };
+}
+
+// Firebase init with session load/save
+async function initializeFirebase() {
+  try {
+    if (Object.keys(firebaseConfig).length) {
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      auth = getAuth(app);
+
+      if (initialAuthToken) {
+        await signInWithCustomToken(auth, initialAuthToken);
+      } else {
+        await signInAnonymously(auth);
+      }
+      userId = auth.currentUser.uid;
+      console.log("Firebase initialized successfully");
+
+      // Load session memory
+      const sessionRef = doc(db, 'sessions', userId);
+      const sessionSnap = await getDoc(sessionRef);
+      if (sessionSnap.exists()) {
+        const data = sessionSnap.data();
+        window.session = {
+          memory: data.memory || { focus_points: [], open_questions: [], clarified_terms: {}, student_name: null, current_lens: null, topic_focus: null, last_student_response: null },
+          current_question: data.current_question || null,
+          current_lens: data.current_lens || null,
+          embeddingsClient: null
+        };
+      } else {
+        window.session = {
+          memory: { focus_points: [], open_questions: [], clarified_terms: {}, student_name: null, current_lens: null, topic_focus: null, last_student_response: null },
+          current_question: null,
+          current_lens: null,
+          embeddingsClient: null
+        };
+      }
+    } else {
+      console.log("Firebase config not provided, running in standalone mode");
+      window.session = {
+        memory: { focus_points: [], open_questions: [], clarified_terms: {}, student_name: null, current_lens: null, topic_focus: null, last_student_response: null },
+        current_question: null,
+        current_lens: null,
+        embeddingsClient: null
+      };
+    }
+  } catch (error) {
+    console.error("Firebase initialization or sign-in failed:", error);
+    window.session = {
+      memory: { focus_points: [], open_questions: [], clarified_terms: {}, student_name: null, current_lens: null, topic_focus: null, last_student_response: null },
+      current_question: null,
+      current_lens: null,
+      embeddingsClient: null
+    };
+  }
+}
+
+async function saveSession() {
+  if (db && userId) {
+    const sessionRef = doc(db, 'sessions', userId);
+    await setDoc(sessionRef, window.session, { merge: true });
+  }
 }
 
 // --- Core Application State & Logic ---
@@ -110,61 +358,12 @@ const phase1BIntro = {
 let phaseIntroSubStep = 0;
 let currentPhase = null;
 
-// --- GEMINI API CALL UTILITY ---
-
-async function callGeminiAPI(systemInstruction, userQuery) {
-    const payload = {
-        contents: [{ parts: [{ text: userQuery }] }],
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-    };
-
-    const maxRetries = 3;
-    let delay = 1000;
-
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                if (response.status === 429 && i < maxRetries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    delay *= 2;
-                    continue;
-                }
-                throw new Error(`API call failed with status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            const raw = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            if (raw && raw.length > 5) {
-                return raw;
-            } else if (i < maxRetries - 1) {
-                console.warn("API returned empty response, retrying...");
-                continue;
-            } else {
-                return "Hmm, could you tell me a bit more about that?";
-            }
-
-        } catch (error) {
-            if (i === maxRetries - 1) {
-                console.error("Gemini API call failed after retries:", error);
-                return "I'm sorry, I'm having trouble connecting right now. Please try again.";
-            }
-        }
-    }
-    return "Failed to get a response.";
-}
-
 // --- CONVERSATION LOG UTILITY ---
 
 function appendToLog(sender, message, isTyping = false) {
     const isUser = sender === 'user';
     const logItem = document.createElement('div');
-    logItem.className = `p-3 rounded-xl shadow-sm ${isUser ? 'bg-blue-100 ml-auto user-bubble' : 'bg-gray-100 mr-auto ai-bubble'} max-w-[85%] text-sm`; // ADDED: user-bubble / ai-bubble classes
+    logItem.className = `p-3 rounded-xl shadow-sm ${isUser ? 'bg-blue-100 ml-auto user-bubble' : 'bg-gray-100 mr-auto ai-bubble'} max-w-[85%] text-sm`;
     logItem.style.maxWidth = '85%';
     logItem.style.wordBreak = 'break-word';
 
@@ -185,8 +384,7 @@ function removeTypingIndicator() {
     }
 }
 
-// --- RENDER FUNCTIONS ---
-
+// --- RENDER FUNCTIONS --- (unchanged from original)
 function renderInitialContext() {
     console.log("Rendering context screen, substep:", contextSubStep);
     currentStepSpan.textContent = '1';
@@ -199,7 +397,7 @@ function renderInitialContext() {
     if (contextSubStep === 0) {
         nextButton.textContent = "Continue";
         container.innerHTML = `
-            <div class="initial-context short-section space-y-4 text-center"> <!-- ADDED: initial-context class -->
+            <div class="initial-context short-section space-y-4 text-center">
                 <h2 class="text-2xl font-bold text-indigo-800">${initialScreen.title}</h2>
                 <p class="text-base text-gray-700 font-medium">Every community challenge connects to a global roadmap (like the UN SDGs). To find your purpose, we first need to look at the big picture.</p>
                 <p class="text-base text-indigo-600 font-semibold">Ready to see where your curiosity fits into the world's roadmap?</p>
@@ -212,7 +410,7 @@ function renderInitialContext() {
                 <h2 class="text-2xl font-bold text-indigo-800">The Global Roadmap: 17 SDGs</h2>
                 <div class="p-2 bg-white rounded-xl shadow-lg border border-gray-200">
                     <p class="text-sm text-gray-700 font-medium mb-2">Watch this short video explaining the 17 Sustainable Development Goals</p>
-                    <div class="video-container rounded-xl shadow-lg border border-indigo-300"> <!-- ADDED: video-container class; removed inline style -->
+                    <div class="video-container rounded-xl shadow-lg border border-indigo-300">
                         <iframe 
                             src="https://www.youtube.com/embed/7dzFbP2AgFo?rel=0&modestbranding=1" 
                             title="17 Sustainable Development Goals Explained" 
@@ -227,10 +425,10 @@ function renderInitialContext() {
     } else if (contextSubStep === 2) {
         nextButton.textContent = "Continue to Reflection";
         container.innerHTML = `
-            <div class="short-section space-y-4 phase-intro"> <!-- ADDED: phase-intro class for consistency -->
+            <div class="short-section space-y-4 phase-intro">
                 <h2 class="text-2xl font-bold text-indigo-800">Your Goal in this Phase:</h2>
                 <div class="text-gray-700 space-y-2">
-                    <ul class="list-disc list-inside ml-4 text-base space-y-1 reflection-list"> <!-- ADDED: reflection-list class -->
+                    <ul class="list-disc list-inside ml-4 text-base space-y-1 reflection-list">
                         <li class="font-medium">Map your local challenge directly to global goals focused on Jobs, Opportunity, and Economic Growth.</li>
                         <li class="font-medium">Discover proven solutions from Africa and the world that apply to your issue.</li>
                         <li class="font-medium">Define a specific, actionable problem in your own community, moving beyond general ideas.</li>
@@ -246,7 +444,7 @@ function renderInitialContext() {
                 <div class="text-gray-700 space-y-2">
                     <p class="text-base font-medium">To gain inspiration, reflect on these as you watch how others are solving similar problems globally and locally.</p>
                     <h3 class="text-lg font-semibold text-gray-700">Reflection Questions:</h3>
-                    <ul class="list-disc list-inside ml-4 text-sm space-y-1 reflection-list"> <!-- CHANGED: reflection-list class, removed inline Tailwind for consistency -->
+                    <ul class="list-disc list-inside ml-4 text-sm space-y-1 reflection-list">
                         <li>What stood out to you in this story?</li>
                         <li>How did they approach the problem?</li>
                         <li>Which idea could work in your community?</li>
@@ -260,7 +458,7 @@ function renderInitialContext() {
             <div class="short-section space-y-4">
                 <h2 class="text-2xl font-bold text-indigo-800">Watch the Video</h2>
                 <div class="text-gray-700 text-center">
-                    <div class="video-container rounded-xl shadow-lg border border-indigo-300"> <!-- ADDED: video-container class; removed inline style -->
+                    <div class="video-container rounded-xl shadow-lg border border-indigo-300">
                         <iframe 
                             src="https://www.youtube.com/embed/IqGxel7qdP4?rel=0&modestbranding=1" 
                             title="Youth Employment Solutions Video" 
@@ -329,7 +527,7 @@ function renderStep1Question() {
     let categoryHTML = q.category ? `<p class="text-sm font-semibold text-gray-600 mb-1">${q.category}</p>` : '';
 
     container.innerHTML = `
-        <div class="question-section short-section space-y-3"> <!-- ADDED: question-section class -->
+        <div class="question-section short-section space-y-3">
             <p class="text-sm font-semibold text-indigo-600 mb-2 border-b border-indigo-200 pb-1">${phaseHeader}</p>
             ${categoryHTML}
             <label for="${q.id}" class="block text-lg font-medium text-gray-700">${q.title} (${currentStepIndex + 1} of ${questions.length})</label>
@@ -433,75 +631,25 @@ function renderStep() {
     updateNavigation();
 }
 
-// --- THRESHOLD CHECK ---
-async function checkThresholds(text) {
-    const q = questions[currentStepIndex];
-    const words = text.split(/\s+/).filter(w => w.length > 0).length;
-    
-    if (words < q.minWords) {
-         console.log(`KPI → FAILED: Too Short (${words}/${q.minWords} words)`);
-         return true; 
-    }
-
-    const systemInstruction = `You are a fast, non-conversational AI specializing in text clarity analysis. 
-Analyze if the student's input is clear and specific.
-
-Criteria for PASS:
-1. Contains concrete nouns (places, objects, specific groups).
-2. Describes an action or consequence.
-3. Does NOT use vague terms (e.g., 'stuff', 'things', 'trouble', 'kind of').
-
-Respond ONLY with {"assessment": "PASS"} or {"assessment": "FAIL"}.`;
-    
-    const userQuery = `Student input: "${text}"`;
-
-    try {
-        const llmResponse = await callGeminiAPI(systemInstruction, userQuery);
-        const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
-        
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.assessment === "PASS") {
-                console.log("KPI → PASSED");
-                return false;
-            }
-        }
-        console.log("KPI → FAILED (Vague)");
-        return true;
-    } catch (error) {
-        console.error("Error during assessment:", error);
-        return true;
-    }
+// Updated threshold check using scaffolding analyzer (returns true if intervention needed)
+async function checkThresholds(text, currentQuestion) {
+  const signals = await analyzeInput(text, currentQuestion);
+  const decision = decideAction(signals, currentQuestion);
+  console.log(`KPI → ${decision.action === 'minimal_validation' ? 'PASSED' : 'FAILED (' + decision.action + ')'}`);
+  return decision.action !== 'minimal_validation' && decision.action !== 'no_intervene';
 }
 
-async function displayAINudge(userText) {
-    const systemInstruction = `You are a warm mentor for Ghanaian students using the GROW Model.
-Your response must be ONE or TWO sentences long, ending with a question mark.
+// Updated nudge using scaffolding handler
+async function displayAINudge(userText, currentQuestion) {
+  const session = window.session;
+  session.current_question = currentQuestion;
+  const result = await handleStudentMessage(userText, session);
+  await saveSession(); // Persist memory
 
-Guidelines:
-1. Acknowledge the student's response warmly.
-2. When the topic is broad, present two specific sub-categories to guide focus.
-3. Never ask vague questions like 'Can you tell me more?'
-4. NEVER end with "let's move on" or "thank you".`;
-    
-    const userQuery = `Student's message: "${userText}"`;
-    
-    appendToLog('mentor', null, true);
-    let response = await callGeminiAPI(systemInstruction, userQuery);
-
-    if (!response.trim().endsWith('?')) {
-        const retryPrompt = `${response}\n\nRewrite this to end with one natural question.`;
-        response = await callGeminiAPI(systemInstruction, retryPrompt);
-    }
-    
-    const normalized = response.toLowerCase();
-    const falsePositives = ["let's move", "thank you", "that's enough", "let's continue"];
-    if (falsePositives.some(f => normalized.includes(f))) {
-        response += " But before we move on, could you share one more specific example?";
-    }
-    
-    removeTypingIndicator();
-    appendToLog('mentor', response);
+  appendToLog('mentor', null, true);
+  removeTypingIndicator();
+  appendToLog('mentor', result.assistant_reply);
+  return result.action !== 'minimal_validation' && result.action !== 'no_intervene'; // True if still awaiting
 }
 
 async function generateFinalProblemSummary(...problemAnswers) {
@@ -528,7 +676,7 @@ async function generateFinalProblemSummary(...problemAnswers) {
     
     const summaryInstruction = `You are a supportive mentor. Your output must be a single, validating summary paragraph (max 2 sentences). Your tone must be validating and smooth.`;
     
-    return callGeminiAPI(summaryInstruction, summaryPrompt);
+    return callGeminiAPI(summaryInstruction, summaryPrompt); // Reuse original callGeminiAPI for summaries
 }
 
 async function generateProfileSummary() {
@@ -623,8 +771,12 @@ async function handleNext() {
             alert("Please write your response first.");
             return;
         }
+
+        // Set current question for session
+        window.session.current_question = q.title;
+        await saveSession();
         
-        const needsMentor = await checkThresholds(answer);
+        const needsMentor = await checkThresholds(answer, q.title);
         appendToLog('user', answer);
 
         if (needsMentor) {
@@ -633,7 +785,7 @@ async function handleNext() {
                 textarea.value = '';
                 textarea.focus();
             }
-            await displayAINudge(answer); 
+            awaitingFollowup = await displayAINudge(answer, q.title); 
             return;
         }
 
@@ -783,6 +935,54 @@ function updateNavigation() {
     }
 }
 
+// Original callGeminiAPI (kept for summaries)
+async function callGeminiAPI(systemInstruction, userQuery) {
+    const payload = {
+        contents: [{ parts: [{ text: userQuery }] }],
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+    };
+
+    const maxRetries = 3;
+    let delay = 1000;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                if (response.status === 429 && i < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                    continue;
+                }
+                throw new Error(`API call failed with status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const raw = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (raw && raw.length > 5) {
+                return raw;
+            } else if (i < maxRetries - 1) {
+                console.warn("API returned empty response, retrying...");
+                continue;
+            } else {
+                return "Hmm, could you tell me a bit more about that?";
+            }
+
+        } catch (error) {
+            if (i === maxRetries - 1) {
+                console.error("Gemini API call failed after retries:", error);
+                return "I'm sorry, I'm having trouble connecting right now. Please try again.";
+            }
+        }
+    }
+    return "Failed to get a response.";
+}
+
 // --- APP INITIALIZATION ---
 
 function initApp() {
@@ -802,10 +1002,10 @@ function initApp() {
     nextButton.addEventListener('click', handleNext);
     backButton.addEventListener('click', handleBack);
     
-    initializeFirebase();
-
-    console.log("Rendering initial step");
-    renderStep();
+    initializeFirebase().then(() => {
+      console.log("Rendering initial step");
+      renderStep();
+    });
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
