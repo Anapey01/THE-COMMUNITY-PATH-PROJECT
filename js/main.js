@@ -1854,10 +1854,10 @@ function injectFeedbackUI() {
                     </div>
                     
                     <label for="feedback-change">5. What is the one thing you would change or add?</label>
-                    <textarea id="feedback-change" name="change-one-thing"></textarea>
+                    <textarea id="feedback-change" name="change-one-thing" required></textarea>
                     
                     <label for="feedback-favorite">6. What was your favorite or most helpful part?</label>
-                    <textarea id="feedback-favorite" name="favorite-part"></textarea>
+                    <textarea id="feedback-favorite" name="favorite-part" required></textarea>
 
                     <button id="feedback-submit-btn" type="submit">Send Feedback</button>
                 </form>
