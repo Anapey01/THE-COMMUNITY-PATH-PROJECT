@@ -1823,7 +1823,7 @@ function injectFeedbackUI() {
                 <h2 style="margin-top:0;">Give Feedback</h2>
                 <p style="font-size: 14px; color: #555;">Help us improve this tool for you!</p>
                 
-                <form id="feedback-form-content" action="https://formsubmit.co/${'gabriel.k.anapey@gmail.com'}" method="POST">
+                <form id="feedback-form-content" action="https://formsubmit.co/23449e193b2a380598a2d6efb908e30b" method="POST">
                     <input type="hidden" name="_subject" value="New Pathfinder App Feedback!">
                     <input type="hidden" name="_autoresponse" value="Thank you for your valuable feedback! We've received it.">
                     
@@ -1918,14 +1918,16 @@ function initApp() {
     const name = window.session.student_name;
     const topic = window.session.previous_topic;
     
-    if (name && window.session.current_step_index > 0) {
+    // [FIX] This is the correct logic for a returning user.
+    // It checks if a name exists *before* rendering.
+    if (name) { 
         conversationLog.innerHTML = ''; // Clear placeholder
         
         if (topic) {
             // [NEW] Mentor Memory Thread
             appendToLog('mentor', `Welcome back, ${name}! Last time, we started talking about ${topic}. Let's build on that thought.`);
         } else {
-            // Fallback generic welcome
+            // Fallback generic welcome (e.g., if they only entered their name)
             appendToLog('mentor', `You are back ${name}, every single action helps to make your purpose clearer.`);
         }
     }
