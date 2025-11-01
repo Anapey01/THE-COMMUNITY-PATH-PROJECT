@@ -236,3 +236,8 @@ body {
     #path-finder-container .initial-context, #path-finder-container .phase-intro { padding: 1rem !important; }
     h1 { font-size: 1.75rem !important; }
 }
+
+#path-finder-container {
+  position: sticky;
+  top: 20px; /* Or whatever padding you want */
+}

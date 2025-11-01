@@ -7,10 +7,13 @@ const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_M
 import {
   initializeApp
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+// [FIX] Import persistence functions
 import {
   getAuth,
   signInAnonymously,
-  signInWithCustomToken
+  signInWithCustomToken,
+  setPersistence,
+  browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import {
   getFirestore,
@@ -379,7 +382,7 @@ async function handleStudentMessage(studentMessage, session) {
   const micro = composeMicroInstruction(action, studentMessage, session.memory, session.current_question);
 
   const runtimePayload = {
-    system_message: "You are a supportive peer mentor assistant for Ghanaian students exploring community issues. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, warm, and use neutral Ghanaian English (e.g., reference shared values like community unity or resilience across Ghana's diverse groups). Do not use specific ethnic languages or references. Do not invent facts. Always stay on the current question; do not jump to later topics like solutions, causes, or efforts.",
+    system_message: "You are a supportive peer mentor assistant for Ghanaian students. Prioritize student-led conversation. Follow any runtime instructions provided in the 'micro_instruction' field. Be brief, clear, non-judgemental, warm, and use neutral Ghanaian English (e.g., reference shared values like community unity or resilience across Ghana's diverse groups). Do not use specific ethnic languages or references. Do not invent facts. Always stay on the current question; do not jump to later topics like solutions, causes, or efforts.",
     micro_instruction: micro,
     memory_snapshot: micro.memory_snapshot,
     student_message: studentMessage
@@ -426,6 +429,7 @@ async function initializeFirebase() {
     embeddingsClient: null,
     // --- [NEW] Progress tracking state ---
     student_name: null,
+    mentor_name: null, // <-- ADDED
     current_step_index: -1,
     context_sub_step: 0,
     phase_intro_sub_step: 0,
@@ -445,6 +449,10 @@ async function initializeFirebase() {
       app = initializeApp(firebaseConfig);
       db = getFirestore(app);
       auth = getAuth(app);
+      
+      // --- [BUG FIX] Set persistence to LOCAL ---
+      await setPersistence(auth, browserLocalPersistence);
+      // --- [END BUG FIX] ---
 
       if (initialAuthToken) {
         await signInWithCustomToken(auth, initialAuthToken);
@@ -472,6 +480,9 @@ async function initializeFirebase() {
         // No session found, use the brand new state
         window.session = newSessionState;
         window.session.created_at = new Date().toISOString(); // <-- SET CREATED_AT
+        // [NEW] Assign a random mentor name
+        const mentorNames = ["Kofi", "Yaw", "Sam", "Ama", "Adwoa"];
+        window.session.mentor_name = mentorNames[Math.floor(Math.random() * mentorNames.length)];
         console.log("No existing session, starting new one.");
       }
     } else {
@@ -479,6 +490,9 @@ async function initializeFirebase() {
       console.log("Firebase config not provided, running in standalone mode");
       window.session = newSessionState;
       window.session.created_at = new Date().toISOString(); // <-- SET CREATED_AT
+      // [NEW] Assign a random mentor name
+      const mentorNames = ["Kofi", "Yaw", "Sam", "Ama", "Adwoa"];
+      window.session.mentor_name = mentorNames[Math.floor(Math.random() * mentorNames.length)];
     }
   } catch (error) {
     // Error mode
@@ -728,16 +742,21 @@ function appendToLog(sender, message, isTyping = false) {
   logItem.style.maxWidth = '85%';
   logItem.style.wordBreak = 'break-word';
 
+  // [NEW] Use dynamic mentor name
+  const name = sender === 'user' ? 'You' : (window.session.mentor_name || 'Mentor');
+
   if (isTyping) {
     logItem.id = 'ai-typing-indicator';
-    logItem.innerHTML = `<span class="font-semibold">${isUser ? 'You' : 'Mentor'}:</span> <span class="animate-pulse">...Thinking...</span>`;
+    logItem.innerHTML = `<span class="font-semibold">${name}:</span> <span class="animate-pulse">...Thinking...</span>`;
   } else if (!message || message.trim() === '') {
     // Avoid empty logs
-    logItem.innerHTML = `<span class="font-semibold">Mentor:</span> <span class="text-gray-400">Reflecting...</span>`;
+    logItem.innerHTML = `<span class="font-semibold">${name}:</span> <span class="text-gray-400">Reflecting...</span>`;
   } else {
-    logItem.innerHTML = `<span class="font-semibold">${isUser ? 'You' : 'Mentor'}:</span> ${message}`;
+    logItem.innerHTML = `<span class="font-semibold">${name}:</span> ${message}`;
   }
   conversationLog.appendChild(logItem);
+  
+  // [NEW] Auto-scroll to bottom
   conversationLog.scrollTop = conversationLog.scrollHeight;
 }
 
