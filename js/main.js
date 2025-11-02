@@ -1930,6 +1930,16 @@ function initApp() {
             // Fallback generic welcome (e.g., if they only entered their name)
             appendToLog('mentor', `You are back ${name}, every single action helps to make your purpose clearer.`);
         }
+        
+        // --- [CRITICAL BUG FIX] ---
+        // If the user is returning but is still in the intro (steps 0 or 1),
+        // skip them forward to the actual content (step 2).
+        if (window.session.current_step_index === -1 && window.session.context_sub_step < 2) {
+          window.session.context_sub_step = 2; // Skip "Enter Name" and "Welcome"
+          console.log("Returning user in intro. Skipping to step 2.");
+        }
+        // --- [END BUG FIX] ---
+
     }
     // --- [END NEW] ---
     
