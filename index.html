@@ -35,6 +35,7 @@
         </div>
     </div>
 
+    <!-- All HTML templates remain here -->
     <div id="html-templates" style="display: none;">
 
         <template id="template-feedback-modal">
@@ -170,6 +171,23 @@
             </div>
         </template>
 
-    </div> <script type="module" src="js/main.js"></script>
+    </div> 
+    
+    <!-- [REPLACED] Old script tag is gone -->
+    
+    <!-- [NEW] Import all modules as you requested -->
+    <script type="module">
+        // Make session global for all modules to access
+        window.session = null;
+
+        import './js/app.utils.js';
+        import './js/app.feedback.js';
+        import './js/app.chat.js';
+        import './js/app.profile.js';
+        import './js/app.firebase.js';
+        
+        // This file runs last and kicks off the application
+        import './js/app.init.js';
+    </script>
 </body>
 </html>
