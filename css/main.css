@@ -104,6 +104,13 @@ body {
 #conversation-log::-webkit-scrollbar-thumb:hover { background: #9ca3af !important; }
 
 /* === Bubbles: Chat message bubbles === */
+/* [NEW] Add relative positioning to hold the reply icon */
+#conversation-log .user-bubble,
+#conversation-log .ai-bubble {
+    position: relative;
+    /* [REMOVED] padding-bottom: 28px; */
+}
+
 #conversation-log .user-bubble {  
     background-color: #dbeafe !important;
     color: #1e40af !important;
@@ -126,6 +133,81 @@ body {
     margin-right: auto !important;
 }
 
+/* [NEW] Style for the quoted message *inside* a bubble */
+.quoted-message {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border-left: 4px solid;
+    opacity: 0.8;
+    cursor: pointer; /* [NEW] Make it clickable */
+}
+
+.user-bubble .quoted-message {
+    background-color: #bfdbfe; /* Lighter blue */
+    border-color: #60a5fa; /* Blue */
+}
+
+.ai-bubble .quoted-message {
+    background-color: #e9d5ff; /* Lighter purple */
+    border-color: #c084fc; /* Purple */
+}
+
+.quoted-message p {
+    margin: 0;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.quoted-message .quoted-name {
+    font-weight: 600;
+}
+
+/* [NEW] Style for the reply icon button (hover) */
+.reply-btn {
+    position: absolute;
+    top: 4px; /* [CHANGED] Moved to top */
+    right: 8px;
+    cursor: pointer;
+    opacity: 0; /* [CHANGED] Hidden by default */
+    transition: opacity 0.15s ease;
+    padding: 2px;
+    background-color: rgba(255, 255, 255, 0.5); /* Soft background */
+    border-radius: 4px;
+}
+.ai-bubble .reply-btn {
+    right: auto;
+    left: 8px;
+}
+/* [NEW] Show on hover */
+.user-bubble:hover .reply-btn,
+.ai-bubble:hover .reply-btn {
+    opacity: 0.8;
+}
+.reply-btn:hover {
+    opacity: 1; /* Fully visible when hovering the button itself */
+}
+
+.reply-btn svg {
+    width: 20px;
+    height: 20px;
+}
+.user-bubble .reply-btn {
+    color: #1e40af;
+}
+.ai-bubble .reply-btn {
+    color: #581c87;
+}
+
+/* [NEW] Highlight class for scroll-to */
+.highlight {
+    transition: all 0.3s ease-out;
+    box-shadow: 0 0 10px 5px #c084fc; /* Mentor purple shadow */
+    transform: scale(1.02);
+}
+
+
 /* === Chat Input (Used in Chat Mode) === */
 #chat-input-container {
     /* Styles are mostly in index.html via Tailwind */
@@ -145,6 +227,11 @@ body {
         border-radius: 0 !important;
     }
     h1 { font-size: 1.75rem !important; }
+
+    /* [NEW] Make reply button visible on mobile without hover */
+    .reply-btn {
+        opacity: 0.5;
+    }
 }
 
 

@@ -51,7 +51,8 @@ const newSessionState = {
     phase_completed: null,  
     created_at: null,  
     updated_at: null,
-    has_rewatched: false // [NEW] Flag for re-welcome message
+    has_rewatched: false, // Flag for re-welcome message
+    chat_history: [] // [NEW] To store messages for reply
 };
 
 // --- STUDENT-LED SCAFFOLDING INTEGRATION ---
@@ -240,8 +241,10 @@ function composeMicroInstruction(action, studentMessage, sessionMemory, currentQ
 
 // Memory Updater
 function summarizeTextShort(text) {
-  const words = text?.trim().split(/\s+/) || [];
-  if (words.length <= 12) return text?.trim() || '';
+  // [FIX] Handle potential undefined text
+  if (!text) return "";
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 12) return text.trim() || '';
   return words.slice(0, 12).join(' ') + '...';
 }
 
@@ -454,7 +457,8 @@ async function initializeFirebase() {
           ...data,
           memory: { ...newSessionState.memory,
             ...(data.memory || {})
-          }
+          },
+          chat_history: data.chat_history || [] // [NEW] Load chat history
         };
         // [FIX] If user quit during onboarding, restart onboarding
         if (window.session.current_step_index < 0) {
@@ -489,6 +493,7 @@ async function saveSession() {
     try {
       const sessionRef = doc(db, 'sessions', userId);
       window.session.updated_at = new Date().toISOString();
+      // [NEW] Save chat history to Firebase
       await setDoc(sessionRef, window.session, {
         merge: true
       });
@@ -568,6 +573,10 @@ const phase1CIntro = {
 // --- DOM Elements ---
 let appContainer, appFooter, nextButton, backButton, currentStepSpan; // Main App
 let conversationLog, chatForm, chatInput, sendButton; // Chat-specific
+let replyPreviewContainer, replyPreviewName, replyPreviewText, cancelReplyBtn; // [NEW] Reply UI
+
+// --- [NEW] Reply State ---
+let currentReply = null; // { messageId, sender, text }
 
 
 // --- [NEW] Main App Router ---
@@ -686,41 +695,90 @@ function renderChatInterface() {
     chatInput = document.getElementById('chat-input');
     sendButton = document.getElementById('send-button');
     
+    // [NEW] Find reply elements
+    replyPreviewContainer = document.getElementById('reply-preview-container');
+    replyPreviewName = document.getElementById('reply-preview-name');
+    replyPreviewText = document.getElementById('reply-preview-text');
+    cancelReplyBtn = document.getElementById('cancel-reply-btn');
+    
     // Attach chat listener
     if (chatForm) {
         chatForm.addEventListener('submit', handleChatSubmit);
-    } else {
-        console.error("Chat form not found after render!");
     }
     
-    // Update header text
+    // [NEW] Attach cancel reply listener
+    if (cancelReplyBtn) {
+        cancelReplyBtn.addEventListener('click', cancelReply);
+    }
+    
+    // [NEW] Attach reply listener to the whole log (event delegation)
+    if (conversationLog) {
+        conversationLog.addEventListener('click', handleLogClick);
+    }
+    
     currentStepSpan.textContent = "Mentor Chat";
 }
 
 
 // --- CONVERSATION LOG UTILITY ---
 
-function appendMessage(sender, message, isTyping = false) {
+/**
+ * [MODIFIED] Appends a message to the chat log
+ * @param {string} sender - 'user' or mentor's name
+ * @param {string} message - The text content (raw markdown)
+ * @param {object} replyInfo - Optional: { messageId, sender, text }
+ * @param {boolean} isTyping - If true, show typing indicator
+ * @returns {string} The messageId of the created bubble
+ */
+function appendMessage(sender, message, replyInfo = null, isTyping = false) {
     if (!conversationLog) {
         console.warn("Conversation log not found, cannot append message.");
-        return; 
+        return null; 
     }
     
     const isUser = sender === 'user';
-    const logItem = document.createElement('div');
+    const senderName = isUser ? (window.session.student_name || 'You') : (sender || 'Mentor');
     
+    const logItem = document.createElement('div');
     logItem.className = `p-3 rounded-xl shadow-sm ${isUser ? 'user-bubble' : 'ai-bubble'} max-w-[85%] text-sm`;
     logItem.style.wordBreak = 'break-word';
+    
+    // [NEW] Give every message a unique ID
+    const messageId = `msg-${window.session.chat_history.length}`;
+    logItem.dataset.messageId = messageId;
+    logItem.dataset.senderName = senderName;
+    logItem.dataset.messageText = message; // Store raw text for replying
 
-    const name = sender === 'user' ? (window.session.student_name || 'You') : (window.session.mentor_name || 'Mentor');
+    let messageHTML = '';
+
+    // [NEW] Add quoted message block if this is a reply
+    if (replyInfo) {
+        messageHTML += `
+            <div class="quoted-message" data-scroll-to-id="${replyInfo.messageId}">
+                <p class="quoted-name">${replyInfo.sender}</p>
+                <p>${replyInfo.text}</p>
+            </div>
+        `;
+    }
 
     if (isTyping) {
         logItem.id = 'ai-typing-indicator';
-        logItem.innerHTML = `<span class="font-semibold">${name}:</span> <span class="animate-pulse">...Thinking...</span>`;
+        logItem.innerHTML = `<span class="font-semibold">${senderName}:</span> <span class="animate-pulse">...Thinking...</span>`;
     } else {
         // [FIX] Render markdown bold
-        message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        logItem.innerHTML = `<span class="font-semibold">${name}:</span> ${message}`;
+        let formattedMessage = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        messageHTML += `<span class="font-semibold">${senderName}:</span> ${formattedMessage}`;
+        
+        // [NEW] Add reply button (hidden by default, shown on hover via CSS)
+        messageHTML += `
+            <button class="reply-btn" title="Reply">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 011.06 0l3.5 3.5a.75.75 0 010 1.06l-3.5 3.5a.75.75 0 01-1.06-1.06L9.94 7 7.793 4.854a.75.75 0 010-1.062L6.732 2.732c-.31-.31-.812-.31-1.122 0l-3.5 3.5a.75.75 0 000 1.06l3.5 3.5c.31.31.812.31 1.122 0l1.06-1.06a.75.75 0 010-1.06L5.06 7l2.146-2.146a.75.75 0 011.06 0l-1.59 1.59a.75.75 0 101.06 1.06l2.122-2.122a.75.75 0 011.06 0z" clip-rule="evenodd" />
+                  <path d="M12.207 7.232a.75.75 0 011.06 0l3.5 3.5a.75.75 0 010 1.06l-3.5 3.5a.75.75 0 01-1.06-1.06L14.94 13l-2.147-2.146a.75.75 0 010-1.062l-1.06-1.06c-.31-.31-.812-.31-1.122 0l-3.5 3.5a.75.75 0 000 1.06l3.5 3.5c.31.31.812.31 1.122 0l1.06-1.06a.75.75 0 010-1.06L10.06 13l2.146-2.146a.75.75 0 011.06 0l-1.59 1.59a.75.75 0 101.06 1.06l2.122-2.122a.75.75 0 011.06 0z" />
+                </svg>
+            </button>
+        `;
+        logItem.innerHTML = messageHTML;
     }
 
     const placeholder = conversationLog.querySelector('.text-gray-500');
@@ -730,6 +788,19 @@ function appendMessage(sender, message, isTyping = false) {
     
     conversationLog.appendChild(logItem);
     conversationLog.scrollTop = conversationLog.scrollHeight;
+    
+    // [NEW] Save message to session history (if it's not just typing)
+    if (!isTyping) {
+        window.session.chat_history.push({
+            id: messageId,
+            sender: senderName,
+            text: message.replace(/\*\*(.*?)\*\*/g, '$1'), // Save un-bolded text for quotes
+            rawText: message, // Save text with markdown
+            replyInfo: replyInfo
+        });
+        return messageId; // [NEW] Return the ID
+    }
+    return null;
 }
 
 function removeTypingIndicator() {
@@ -738,18 +809,22 @@ function removeTypingIndicator() {
 }
 
 // --- Scaffolding function adapted for chat ---
-async function displayAINudge(userText, currentQuestion, qId) {
+/**
+ * [MODIFIED] Displays an AI nudge in the chat interface, quoting the user.
+ */
+async function displayAINudge(userText, currentQuestion, qId, userMessageReplyInfo) {
     const session = window.session;
     session.current_question = currentQuestion;
     
-    appendMessage('mentor', '', true); // Typing...
+    appendMessage('mentor', '', null, true); // Typing...
     const result = await handleStudentMessage(userText, session);
 
     const currentCount = interventionCounts.get(qId) || 0;
     interventionCounts.set(qId, currentCount + 1);
 
     removeTypingIndicator();
-    appendMessage(session.mentor_name, result.assistant_reply);
+    // [NEW] Pass the user's message as replyInfo
+    appendMessage(session.mentor_name, result.assistant_reply, userMessageReplyInfo);
     
     if(chatInput) chatInput.disabled = false;
     if(sendButton) sendButton.disabled = false;
@@ -789,6 +864,12 @@ function startChatConversation() {
     }
     conversationLog.innerHTML = ''; // Clear placeholder
     
+    // [NEW] Render all existing chat history
+    window.session.chat_history.forEach(msg => {
+        // Re-create the bubble content from stored data
+        appendMessage(msg.sender, msg.rawText, msg.replyInfo);
+    });
+
     // Check if user is returning mid-conversation
     // [NEW] State shift: 5 is the first question
     if (topic && window.session.current_step_index >= 5) {
@@ -797,9 +878,15 @@ function startChatConversation() {
         setTimeout(askCurrentQuestion, 1500); // Ask question they left off on
     } else {
         // --- NEW USER or REWATCHER ---
-        // State is current_step_index = 0
-        window.session.current_step_index = 0; // Ensure it's 0
-        askCurrentQuestion(); // This will ask the welcome message
+        // Only ask welcome if chat history is empty
+        if (window.session.chat_history.length === 0) {
+            window.session.current_step_index = 0; // Ensure it's 0
+            askCurrentQuestion(); // This will ask the welcome message
+        } else {
+            // User is returning but hasn't finished welcome, ask current question
+            // (and re-enable input)
+            askCurrentQuestion();
+        }
     }
 }
 
@@ -820,8 +907,7 @@ async function askCurrentQuestion() {
         if (window.session.has_rewatched) {
             // --- User has rewatched ---
             appendMessage(mentorName, `Welcome back, ${name}. I believe you are ready now?`);
-            // We set a special state 100 to handle this "yes/no"
-            window.session.current_step_index = 100;
+            window.session.current_step_index = 100; // Special state
         } else {
             // --- First-time welcome ---
             appendMessage(mentorName, `${getTimeGreeting()}, ${name}.`);
@@ -849,6 +935,7 @@ async function askCurrentQuestion() {
         // --- Ask First Question ---
         // This state is just a buffer, we move to state 5 to ask Q[0]
         window.session.current_step_index = 5;
+        await saveSession(); // Save new index
         askCurrentQuestion(); // Ask questions[0]
         return; // Exit to avoid double-enabling input
 
@@ -905,11 +992,23 @@ async function handleChatSubmit(event) {
     const userInput = chatInput.value.trim();
     if (userInput === '') return;
 
-    appendMessage('user', userInput);
+    // [NEW] Check if this is a reply
+    const replyData = currentReply; 
+    
+    // [MODIFIED] Save the messageId
+    const userMessageId = appendMessage('user', userInput, replyData);
+    // [NEW] Create reply info for the mentor to use
+    const userMessageReplyInfo = {
+        messageId: userMessageId,
+        sender: window.session.student_name || 'You',
+        text: userInput
+    };
+    
     chatInput.value = '';
     chatInput.disabled = true;
     sendButton.disabled = true;
-
+    cancelReply(); // [NEW] Clear the reply state
+    
     // --- STATE-BASED LOGIC ---
     const index = window.session.current_step_index;
     const lowerInput = userInput.toLowerCase();
@@ -948,7 +1047,6 @@ async function handleChatSubmit(event) {
     
     } else if (index === 3) {
         // --- 4. Processing "Ready for Q1" ---
-        // Any positive affirmation works
         window.session.current_step_index = 5; // Move to first question (skipping 4)
         await saveSession();
         askCurrentQuestion(); // Asks questions[0]
@@ -956,13 +1054,16 @@ async function handleChatSubmit(event) {
     } else if (index >= 5 && (index - 5) < questions.length) {
         // --- 5. Processing a Question Answer ---
         const questionIndex = index - 5; // 5 -> 0, 6 -> 1
+        const lastPhase1B_QuestionIndex = (discoveryQuestions.length + definingQuestions.length) - 1; // This is 18
+        
         const q = questions[questionIndex];
         const needsNudge = await checkThresholds(userInput, q.title, q.id);
 
         if (needsNudge) {
             // --- A. Answer is weak, needs nudge ---
             expectingRefined = true;
-            await displayAINudge(userInput, q.title, q.id);
+            // [MODIFIED] Pass the user's message info for quoting
+            await displayAINudge(userInput, q.title, q.id, userMessageReplyInfo);
             
         } else {
             // --- B. Answer is good, proceed ---
@@ -972,29 +1073,69 @@ async function handleChatSubmit(event) {
                  window.session.previous_topic = summarizeTextShort(userInput);
             }
             
-            appendMessage('mentor', '', true); // Typing...
-            
-            let transition;
-            const nextQ = questions[questionIndex + 1];
-            
-            if (nextQ) {
-                 transition = await generateSmartTransition(userInput, nextQ.title);
+            // [NEW] Check if this is the end of Phase 1B
+            if (questionIndex === lastPhase1B_QuestionIndex) {
+                // --- B.1. START VALIDATION ---
+                appendMessage('mentor', '', null, true); // Typing...
+                const summary = await generateFinalProblemSummary();
+                removeTypingIndicator();
+                
+                await new Promise(r => setTimeout(r, 1000));
+                appendMessage(mentorName, "Great, you've defined the core problem. Here's a summary of your thoughts:", userMessageReplyInfo);
+                await new Promise(r => setTimeout(r, 1500));
+                appendMessage(mentorName, `"${summary}"`);
+                await new Promise(r => setTimeout(r, 1500));
+                appendMessage(mentorName, "Does that capture your idea correctly? Please type **'approve'** to continue, or **'refine'** to go back and change it.");
+                
+                window.session.current_step_index = 150; // Awaiting validation
+                await saveSession();
+                chatInput.disabled = false;
+                sendButton.disabled = false;
+                chatInput.focus();
+
             } else {
-                transition = "Got it. That's a very clear point.";
+                // --- B.2. NORMAL TRANSITION ---
+                appendMessage('mentor', '', null, true); // Typing...
+                
+                let transition;
+                const nextQ = questions[questionIndex + 1];
+                
+                if (nextQ) {
+                     transition = await generateSmartTransition(userInput, nextQ.title);
+                } else {
+                    transition = "Got it. That's a very clear point.";
+                }
+                
+                await new Promise(r => setTimeout(r, 1000)); // Human delay
+                removeTypingIndicator();
+                appendMessage(mentorName, transition, userMessageReplyInfo); 
+                
+                window.session.current_step_index++; // e.g., 5 -> 6
+                await saveSession();
+                
+                setTimeout(askCurrentQuestion, 2000); // Wait for transition, then ask
             }
-            
-            await new Promise(r => setTimeout(r, 1000)); // Human delay
-            removeTypingIndicator();
-            appendMessage(mentorName, transition); 
-            
-            window.session.current_step_index++; // e.g., 5 -> 6
-            await saveSession();
-            
-            setTimeout(askCurrentQuestion, 2000); // Wait for transition, then ask
         }
     
+    } else if (index === 150) {
+        // --- 6.A. Handling "Approve" or "Refine" ---
+        if (lowerInput.includes('refine')) {
+            appendMessage(mentorName, "Got it. Let's go back and redefine the core issue.");
+            // 5 (start) + 9 (Phase 1A) = 14
+            window.session.current_step_index = 14; // Start of Phase 1B
+            await saveSession();
+            setTimeout(askCurrentQuestion, 1500);
+        } else {
+            // Assume "approve"
+            appendMessage(mentorName, "Excellent. Let's move on.");
+            // 5 (start) + 9 (1A) + 10 (1B) = 24
+            window.session.current_step_index = 24; // Start of Phase 1C
+            await saveSession();
+            setTimeout(askCurrentQuestion, 1500);
+        }
+
     } else if (index === 100) {
-        // --- 6.A. Handling "Ready now?" after rewatch ---
+        // --- 6.B. Handling "Ready now?" after rewatch ---
         if (positiveReply.some(w => lowerInput.includes(w))) {
             window.session.current_step_index = 3; // Move to "Set Context"
             await saveSession();
@@ -1003,26 +1144,24 @@ async function handleChatSubmit(event) {
             appendMessage(mentorName, "No problem at all. Is there anything you're still unsure about?");
             window.session.current_step_index = 101; // Move to "why not"
             await saveSession();
-            // Re-enable input
             chatInput.disabled = false;
             sendButton.disabled = false;
             chatInput.focus();
         }
 
     } else if (index === 101) {
-        // --- 6.B. User explained why they're not ready ---
+        // --- 6.C. User explained why they're not ready ---
         appendMessage(mentorName, "That's understandable. This session is all about exploring your own ideas, so there's no pressure. It's just a space for you to think.");
         await new Promise(r => setTimeout(r, 2000));
         appendMessage(mentorName, "Can we start now?");
         window.session.current_step_index = 102; // Move to final check
         await saveSession();
-        // Re-enable input
         chatInput.disabled = false;
         sendButton.disabled = false;
         chatInput.focus();
         
     } else if (index === 102) {
-        // --- 6.C. Final check ---
+        // --- 6.D. Final check ---
          if (positiveReply.some(w => lowerInput.includes(w))) {
             window.session.current_step_index = 3; // Move to "Set Context"
             await saveSession();
@@ -1031,7 +1170,6 @@ async function handleChatSubmit(event) {
             appendMessage(mentorName, "That's alright. Feel free to re-watch again. I'll be here when you're ready.");
             window.session.current_step_index = 2; // Back to "continue/rewatch"
             await saveSession();
-            // Re-enable input
             chatInput.disabled = false;
             sendButton.disabled = false;
             chatInput.focus();
@@ -1045,6 +1183,83 @@ async function handleChatSubmit(event) {
         await saveSession();
     }
 }
+
+// --- [NEW] REPLY HANDLERS ---
+
+/**
+ * Handles a click anywhere on the conversation log.
+ * Checks if the click was on a reply button.
+ */
+function handleLogClick(event) {
+    // Check for reply button first
+    const replyButton = event.target.closest('.reply-btn');
+    if (replyButton) {
+        const messageBubble = event.target.closest('[data-message-id]');
+        if (!messageBubble) return;
+
+        const { messageId, senderName } = messageBubble.dataset;
+        
+        // Find the clean text from chat history
+        const historyMessage = window.session.chat_history.find(m => m.id === messageId);
+        const cleanText = historyMessage ? historyMessage.text : messageBubble.dataset.messageText; // Fallback
+        
+        initReply(messageId, senderName, cleanText);
+        return; // Stop processing
+    }
+
+    // Check for quoted message click
+    const quotedMessage = event.target.closest('.quoted-message');
+    if (quotedMessage) {
+        scrollToMessage(quotedMessage);
+        return; // Stop processing
+    }
+}
+
+/**
+ * [NEW] Scrolls to the original message when a quote is clicked
+ */
+function scrollToMessage(quotedMessageElement) {
+    const messageId = quotedMessageElement.dataset.scrollToId;
+    if (!messageId) return;
+
+    const originalMessage = conversationLog.querySelector(`[data-message-id="${messageId}"]`);
+    if (originalMessage) {
+        originalMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add highlight
+        originalMessage.classList.add('highlight');
+        setTimeout(() => {
+            originalMessage.classList.remove('highlight');
+        }, 1500); // Highlight for 1.5 seconds
+    }
+}
+
+
+/**
+ * Sets the app state to "replying" and shows the preview UI.
+ */
+function initReply(messageId, sender, text) {
+    currentReply = { messageId, sender, text };
+    
+    if (replyPreviewName) replyPreviewName.textContent = sender;
+    if (replyPreviewText) replyPreviewText.textContent = text;
+    if (replyPreviewContainer) replyPreviewContainer.classList.remove('hidden');
+    
+    if (chatInput) chatInput.focus();
+}
+
+/**
+ * Clears the reply state and hides the preview UI.
+ */
+function cancelReply() {
+    currentReply = null;
+    if (replyPreviewContainer) {
+        replyPreviewContainer.classList.add('hidden');
+        replyPreviewName.textContent = '';
+        replyPreviewText.textContent = '';
+    }
+}
+
 
 // --- [REVIVED] ONBOARDING HANDLERS ---
 
@@ -1096,16 +1311,21 @@ function updateNavigation() {
 
 
 // --- OTHER FUNCTIONS ---
-async function generateFinalProblemSummary(...problemAnswers) {
-  const dataPoints = problemAnswers.map((answer, index) => {
+async function generateFinalProblemSummary() {
+  // [MODIFIED] Pass the correct answers array
+  const answers = window.session.answers;
+  const dataPoints = answers.map((answer, index) => {
     let category = '';
     // Note: The question index is now (index - 5)
     const questionIndex = index - 5;
+    if (questionIndex < 0 || !answer) return null; // Skip welcome messages
+    
     if (questionIndex < discoveryQuestions.length + definingQuestions.length) {  
       if (questionIndex < discoveryQuestions.length) {
         category = 'DISCOVERY - ' + discoveryQuestions[questionIndex].title.replace(/Question \d+: /, '');
       } else {
         const defIndex = questionIndex - discoveryQuestions.length;
+        if(defIndex >= definingQuestions.length) return null;
         const defQ = definingQuestions[defIndex];
         category = `DEFINING - ${defQ.category ? defQ.category + ': ' : ''}` + defQ.title.replace(/Question \d+: /, '');
       }
@@ -1130,7 +1350,7 @@ async function generateProfileSummary() {
   window.session.profile_generated = true;
   console.log("generateProfileSummary needs to be adapted for chat UI");
   
-  appendMessage('mentor', '', true); // Typing...
+  appendMessage('mentor', '', null, true); // Typing...
 
   // Note: The question indices are shifted by 5
   const problemStatement = `Problem: Q1: ${window.session.answers[5]} | Q2: ${window.session.answers[6]} | Q9: ${window.session.answers[13]}`;
@@ -1148,14 +1368,14 @@ async function generateProfileSummary() {
   const [title, summary] = rawResponse.split('|').map(s => s.trim());
 
   if (title && summary) {
-    appendMessage('mentor', `Here is your Purpose Profile:\n\n**${title}**\n${summary}`);
+    appendMessage(window.session.mentor_name, `Here is your Purpose Profile:\n\n**${title}**\n${summary}`);
   } else {
-    appendMessage('mentor', "Sorry, I had trouble generating your profile. Let's move on for now.");
+    appendMessage(window.session.mentor_name, "Sorry, I had trouble generating your profile. Let's move on for now.");
   }
   
   await saveSession();
   
-  appendMessage('mentor', "Next, we'll look at Step 4: Academic Reality...");
+  appendMessage(window.session.mentor_name, "Next, we'll look at Step 4: Academic Reality...");
 }
 
 function handleTagClick(event) {
