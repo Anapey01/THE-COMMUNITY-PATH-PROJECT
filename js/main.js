@@ -1,5 +1,5 @@
 // --- GEMINI API Configuration (Mandatory) ---
-const apiKey = "AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc";
+const apiKey = "AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc"; // This should be secured
 const LLM_MODEL = "gemini-2.5-flash";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent?key=${apiKey}`;
 
@@ -7,7 +7,6 @@ const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_M
 import {
   initializeApp
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-// [FIX] Import persistence functions
 import {
   getAuth,
   signInAnonymously,
@@ -32,6 +31,29 @@ let db;
 let auth;
 let userId;
 
+// --- [NEW] Default Session State ---
+const newSessionState = {
+    memory: {
+      focus_points: [], open_questions: [], clarified_terms: {},
+      student_name: null, current_lens: null, topic_focus: null, last_student_response: null
+    },
+    current_question: null,
+    current_lens: null,
+    student_name: null,
+    mentor_name: null,
+    current_step_index: -4, // -4:name, -3:intro, -2:vid1, -1:vid2, 0:welcome, 1:sdg_ack, 2:choice, 3:context, 4:ready, 5+:chat_q
+    answers: [],
+    selected_skills: [],
+    profile_generated: false,
+    awaiting_validation: false,
+    current_summary: "",
+    previous_topic: null,  
+    phase_completed: null,  
+    created_at: null,  
+    updated_at: null,
+    has_rewatched: false // [NEW] Flag for re-welcome message
+};
+
 // --- STUDENT-LED SCAFFOLDING INTEGRATION ---
 // Tunable thresholds
 const THRESHOLDS = {
@@ -40,8 +62,8 @@ const THRESHOLDS = {
   COMPLETENESS: 0.50,
   SHORT_LENGTH: 8,
   CONFUSION_KEYWORDS: ["maybe", "kinda", "I don't know", "not sure", "stuff", "things", "etc"],
-  READINESS_THRESHOLD: 0.70, // New: Min score to proceed without intervention
-  MAX_INTERVENTIONS: 3 // New: Max nudges per question to avoid laborious loops
+  READINESS_THRESHOLD: 0.70, // Min score to proceed without intervention
+  MAX_INTERVENTIONS: 3 // Max nudges per question
 };
 
 // Track interventions per question
@@ -76,6 +98,14 @@ function keywordOverlap(textA, textB) {
     if (wordsA.has(w)) overlap++;
   });
   return overlap / Math.max(wordsA.size, 1);
+}
+
+// [NEW] Helper for time-based greeting
+function getTimeGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
 }
 
 // New: Readiness Assessor (lightweight LLM call)
@@ -185,7 +215,7 @@ function composeMicroInstruction(action, studentMessage, sessionMemory, currentQ
     },
     student_message: studentMessage,
     output_format: "single_question",
-    max_words: 25 // Increased slightly to reduce cutoffs
+    max_words: 25
   };
 
   const actionInstructions = {
@@ -203,7 +233,7 @@ function composeMicroInstruction(action, studentMessage, sessionMemory, currentQ
     minimal_validation: 8,
     invite_expand: 15,
     re_anchor: 30
-  } [action] || 25; // Adjusted for completeness
+  } [action] || 25;
 
   return ms;
 }
@@ -241,7 +271,6 @@ function updateMemory(memory, studentMessage, inferredLens = null) {
 // Improved Output Filter (sentence-aware to avoid cutoffs)
 function filterLLMOutput(text, microInstruction) {
   let cleaned = (text || '').replace(/\n+/g, ' ').trim();
-  // Split into sentences
   const sentences = cleaned.split(/[.!?]+/).map(s => s.trim() + '.').filter(s => s.length > 10);
   let wordCount = 0;
   let filtered = '';
@@ -251,11 +280,11 @@ function filterLLMOutput(text, microInstruction) {
     filtered += (filtered ? ' ' : '') + sentence;
     wordCount += sentWords;
   }
-  if (!/[.?!]$/.test(filtered)) filtered += "?"; // End with ? for questions to feel natural
-  return filtered || cleaned.substring(0, microInstruction.max_words) + '?'; // Fallback ends with ?
+  if (!/[.?!]$/.test(filtered)) filtered += "?";
+  return filtered || cleaned.substring(0, microInstruction.max_words) + '?';
 }
 
-// New: Smart Rephrase for Fallbacks (adds context/meaning without answering)
+// New: Smart Rephrase for Fallbacks
 async function rephraseCurrentQuestion(currentQuestion, studentMessage) {
   const systemInstruction = `You are a warm, supportive mentor for Ghanaian students. Rephrase this question to provide context and meaning, weaving in the student's recent thought warmly without answering it or adding facts. Keep neutral Ghanaian English, evoke emotions/values, end with a question. Max 25 words.`;
   const userQuery = `Original Question: "${currentQuestion}"\nStudent's Recent Thought: "${studentMessage}"\nRephrase to guide gently.`;
@@ -264,21 +293,16 @@ async function rephraseCurrentQuestion(currentQuestion, studentMessage) {
     const response = await callGeminiAPI(systemInstruction, userQuery);
     return filterLLMOutput(response, {
       max_words: 25
-    }); // Apply light filter
+    });
   } catch (error) {
     console.error('Rephrase failed:', error);
-    // Graceful template fallback
     const summary = studentMessage.split('.')[0].trim();
     const simpleRephrase = `Building on your insight about ${summary}, how does this connect to your personal values or emotions in your community?`;
     return simpleRephrase;
   }
 }
 
-/**
- * [NEW SMART LOGIC]
- * Uses an LLM call to generate a smooth transition between questions,
- * acknowledging and paraphrasing the student's last answer.
- */
+// Smart Transition (Active Listening)
 async function generateSmartTransition(priorAnswer, nextQuestionTitle) {
   const systemInstruction = `You are a supportive peer mentor for Ghanaian students. Your task is to create a smooth, natural transition. 
   1. Briefly and warmly acknowledge the student's previous answer. 
@@ -291,17 +315,14 @@ async function generateSmartTransition(priorAnswer, nextQuestionTitle) {
   try {
     const transitionText = await callGeminiAPI(systemInstruction, userQuery);
 
-    // Basic validation to ensure the API returned something sensible
     if (transitionText && transitionText.length > 15 && transitionText.includes("?")) {
       return transitionText;
     } else {
-      // Fallback if response is empty, weird, or the default error
       console.warn("Smart transition failed, using template fallback.");
       const rephrasedNext = nextQuestionTitle.charAt(0).toLowerCase() + nextQuestionTitle.slice(1);
       return `That's a great point. Now, let's think about this: ${rephrasedNext}?`;
     }
   } catch (error) {
-    // Fallback on any API error
     console.error("Error in generateSmartTransition:", error);
     const rephrasedNext = nextQuestionTitle.charAt(0).toLowerCase() + nextQuestionTitle.slice(1);
     return `That's a very clear point. Moving on, ${rephrasedNext}?`;
@@ -327,7 +348,7 @@ async function callLLM(runtimePayload, isFallbackCheck = false) {
     },
     generationConfig: {
       maxOutputTokens: 100
-    } // Added to encourage fuller responses
+    }
   };
 
   const maxRetries = 3;
@@ -360,14 +381,13 @@ async function callLLM(runtimePayload, isFallbackCheck = false) {
         console.warn("API returned empty response, retrying...");
         continue;
       } else {
-        // Flag for rephrase instead of generic fallback
         return "REPHRASE_NEEDED";
       }
 
     } catch (error) {
       if (i === maxRetries - 1) {
         console.error('LLM call failed:', error);
-        return "REPHRASE_NEEDED"; // Use rephrase on errors too
+        return "REPHRASE_NEEDED";
       }
     }
   }
@@ -390,17 +410,13 @@ async function handleStudentMessage(studentMessage, session) {
 
   let llmText = await callLLM(runtimePayload);
 
-  // New: If rephrase flag, generate contextual rephrase instead of "..."
   if (llmText === "REPHRASE_NEEDED") {
     console.warn('Fallback triggered; generating contextual rephrase.');
     llmText = await rephraseCurrentQuestion(session.current_question, studentMessage);
   }
 
   llmText = filterLLMOutput(llmText, micro);
-
   session.memory = updateMemory(session.memory, studentMessage, session.current_lens);
-
-  // Save session memory after AI interaction
   await saveSession();
 
   return {
@@ -413,46 +429,14 @@ async function handleStudentMessage(studentMessage, session) {
 
 // Firebase init with session load/save
 async function initializeFirebase() {
-  // Default state for a new session
-  const newSessionState = {
-    memory: {
-      focus_points: [],
-      open_questions: [],
-      clarified_terms: {},
-      student_name: null,
-      current_lens: null,
-      topic_focus: null,
-      last_student_response: null
-    },
-    current_question: null,
-    current_lens: null,
-    embeddingsClient: null,
-    // --- [NEW] Progress tracking state ---
-    student_name: null,
-    mentor_name: null, // <-- ADDED
-    current_step_index: -1,
-    context_sub_step: 0,
-    phase_intro_sub_step: 0,
-    answers: [],
-    selected_skills: [],
-    profile_generated: false,
-    awaiting_validation: false,
-    current_summary: "",
-    previous_topic: null, 
-    phase_completed: null, 
-    created_at: null, 
-    updated_at: null 
-  };
-
+  // Default state is defined globally as newSessionState
   try {
     if (Object.keys(firebaseConfig).length) {
       app = initializeApp(firebaseConfig);
       db = getFirestore(app);
       auth = getAuth(app);
       
-      // --- [BUG FIX] Set persistence to LOCAL ---
       await setPersistence(auth, browserLocalPersistence);
-      // --- [END BUG FIX] ---
 
       if (initialAuthToken) {
         await signInWithCustomToken(auth, initialAuthToken);
@@ -462,25 +446,25 @@ async function initializeFirebase() {
       userId = auth.currentUser.uid;
       console.log("Firebase initialized successfully");
 
-      // Load session memory
       const sessionRef = doc(db, 'sessions', userId);
       const sessionSnap = await getDoc(sessionRef);
       if (sessionSnap.exists()) {
         const data = sessionSnap.data();
-        // Merge loaded data with defaults to prevent errors if schema mismatch
         window.session = { ...newSessionState,
           ...data,
-          // Deep merge memory just in case
           memory: { ...newSessionState.memory,
             ...(data.memory || {})
           }
         };
+        // [FIX] If user quit during onboarding, restart onboarding
+        if (window.session.current_step_index < 0) {
+            window.session.current_step_index = -4; // Restart at name capture
+        }
         console.log("Loaded existing session from step:", window.session.current_step_index);
       } else {
         // No session found, use the brand new state
-        window.session = newSessionState;
-        window.session.created_at = new Date().toISOString(); // <-- SET CREATED_AT
-        // [NEW] Assign a random mentor name
+        window.session = { ...newSessionState }; // Use a copy
+        window.session.created_at = new Date().toISOString();
         const mentorNames = ["Kofi", "Yaw", "Sam", "Ama", "Adwoa"];
         window.session.mentor_name = mentorNames[Math.floor(Math.random() * mentorNames.length)];
         console.log("No existing session, starting new one.");
@@ -488,16 +472,15 @@ async function initializeFirebase() {
     } else {
       // Standalone mode
       console.log("Firebase config not provided, running in standalone mode");
-      window.session = newSessionState;
-      window.session.created_at = new Date().toISOString(); // <-- SET CREATED_AT
-      // [NEW] Assign a random mentor name
+      window.session = { ...newSessionState }; // Use a copy
+      window.session.created_at = new Date().toISOString();
       const mentorNames = ["Kofi", "Yaw", "Sam", "Ama", "Adwoa"];
       window.session.mentor_name = mentorNames[Math.floor(Math.random() * mentorNames.length)];
     }
   } catch (error) {
     // Error mode
     console.error("Firebase initialization or sign-in failed:", error);
-    window.session = newSessionState;
+    window.session = { ...newSessionState }; // CRITICAL: Ensure session exists
   }
 }
 
@@ -505,9 +488,7 @@ async function saveSession() {
   if (db && userId) {
     try {
       const sessionRef = doc(db, 'sessions', userId);
-      // [NEW] Update timestamp
       window.session.updated_at = new Date().toISOString();
-      
       await setDoc(sessionRef, window.session, {
         merge: true
       });
@@ -520,205 +501,57 @@ async function saveSession() {
 
 // --- Core Application State & Logic ---
 
-let awaitingFollowup = false; // This is fine as global, it's not persistent state
-
-const initialScreen = {
-  id: 's0_context',
-  title: "Phase 1: Setting Context & Building Awareness",
-  buttonText: "I Understand. Let's Start."
-};
-
 // 🧭 PHASE 1A – DISCOVERY (9 QUESTIONS)
-const discoveryQuestions = [{
-  id: 'q1a1_curiosity',
-  title: "What problem have you noticed in your community that ignites a curiosity in you?",
-  placeholder: "Describe a challenge like youth unemployment in your area or waste in local markets that sparks your interest.",
-  helpText: "Think of issues close to home in Ghana that make you wonder 'Why?' or 'How can we fix this?'",
-  minWords: 10
-}, {
-  id: 'q1a2_notice',
-  title: "How did you first notice this problem? (Through experience, observation, or from someone else?)",
-  placeholder: "Describe the moment or story that brought this to your attention.",
-  helpText: "Share the specific trigger that made it personal, like a conversation at a trotro stop.",
-  minWords: 10
-}, {
-  id: 'q1a3_affected',
-  title: "Who do you see being most affected by this issue?",
-  placeholder: "Name specific groups like 'street vendors in Accra' or 'rural farmers'.",
-  helpText: "Focus on the people closest to the pain, like families in your neighborhood.",
-  minWords: 10
-}, {
-  id: 'q1a4_personal',
-  title: "What makes this issue important to you personally?",
-  placeholder: "How does it frustrate, anger, or inspire you?",
-  helpText: "Connect it to your emotions or values, rooted in your Ghanaian context.",
-  minWords: 10
-}, {
-  id: 'q1a5_example',
-  title: "Can you describe a specific situation or example that made you realize it's a serious problem?",
-  placeholder: "Tell a short story from your community.",
-  helpText: "Stories make the issue vivid and real, like a local market tale.",
-  minWords: 10
-}, {
-  id: 'q1a6_efforts',
-  title: "Have you seen anyone or any group trying to fix this problem before? What did they do?",
-  placeholder: "Mention local initiatives, NGOs, or community efforts.",
-  helpText: "This shows what's been tried and gaps, perhaps a church group or youth club.",
-  minWords: 10
-}, {
-  id: 'q1a7_causes',
-  title: "What do you think causes this problem in your community?",
-  placeholder: "Is it poverty, lack of resources, or cultural factors?",
-  helpText: "Pinpoint the everyday triggers, like seasonal farming challenges.",
-  minWords: 10
-}, {
-  id: 'q1a8_future',
-  title: "If this problem continues, what do you think will happen in the next few years?",
-  placeholder: "Describe the worsening impact on people or places.",
-  helpText: "Imagine the ripple effects on your community.",
-  minWords: 10
-}, {
-  id: 'q1a9_wish',
-  title: "What do you wish could change about it?",
-  placeholder: "What small or big shift would make a difference?",
-  helpText: "This sparks your vision for better, inspired by Ghanaian resilience.",
-  minWords: 10
-}, ];
+const discoveryQuestions = [
+    { id: 'q1a1_curiosity', title: "What problem have you noticed in your community that ignites a curiosity in you?", helpText: "Think of issues close to home in Ghana that make you wonder 'Why?' or 'How can we fix this?'" },
+    { id: 'q1a2_notice', title: "How did you first notice this problem? (Through experience, observation, or from someone else?)", helpText: "Share the specific trigger that made it personal, like a conversation at a trotro stop." },
+    { id: 'q1a3_affected', title: "Who do you see being most affected by this issue?", helpText: "Focus on the people closest to the pain, like families in your neighborhood." },
+    { id: 'q1a4_personal', title: "What makes this issue important to you personally?", helpText: "Connect it to your emotions or values, rooted in your Ghanaian context." },
+    { id: 'q1a5_example', title: "Can you describe a specific situation or example that made you realize it's a real problem?", helpText: "Stories make the issue vivid and real, like a local market tale." },
+    { id: 'q1a6_efforts', title: "Have you seen anyone or any group trying to fix this problem before? What did they do?", helpText: "This shows what's been tried and gaps, perhaps a church group or youth club." },
+    { id: 'q1a7_causes', title: "What do you think causes this problem in your community?", helpText: "Pinpoint the everyday triggers, like seasonal farming challenges." },
+    { id: 'q1a8_future', title: "If this problem continues, what do you think will happen in the next few years?", helpText: "Imagine the ripple effects on your community." },
+    { id: 'q1a9_wish', title: "What do you wish could change about it?", helpText: "This sparks your vision for better, inspired by Ghanaian resilience." }
+];
 
 // 🧭 PHASE 1B – DEFINING (10 QUESTIONS)
-const definingQuestions = [{
-  id: 'q1b1_what',
-  category: 'What',
-  title: "What exactly is the problem or issue you've identified?",
-  placeholder: "Be precise, e.g., 'flooding in low-lying areas during rains'.",
-  helpText: "Define the core issue clearly.",
-  minWords: 10
-}, {
-  id: 'q1b2_where',
-  category: 'Where',
-  title: "Where does it happen most often? (Community, workplaces, schools, etc.)",
-  placeholder: "Specific spots like 'informal markets in Kumasi'.",
-  helpText: "Narrow the location for focus.",
-  minWords: 10
-}, {
-  id: 'q1b3_who',
-  category: 'Who',
-  title: "Who are the main people affected by this problem?",
-  placeholder: "Detail groups like 'youth without skills training'.",
-  helpText: "Highlight the vulnerable.",
-  minWords: 10
-}, {
-  id: 'q1b4_when',
-  category: 'When',
-  title: "When does it usually happen? (Certain seasons, life stages, or times?)",
-  placeholder: "E.g., 'during dry seasons' or 'for school leavers'.",
-  helpText: "Timing reveals patterns.",
-  minWords: 10
-}, {
-  id: 'q1b5_why',
-  category: 'Why',
-  title: "Why do you think this problem keeps happening?",
-  placeholder: "Systemic reasons like 'poor infrastructure funding'.",
-  helpText: "Uncover the persistence.",
-  minWords: 10
-}, {
-  id: 'q1b6_how',
-  category: 'How',
-  title: "How does this issue affect people or the community as a whole?",
-  placeholder: "E.g., 'leads to health risks and lost income'.",
-  helpText: "Show the broader ripple.",
-  minWords: 10
-}, {
-  id: 'q1b7_root',
-  category: 'Root Causes',
-  title: "What do you think are the main root causes behind this problem?",
-  placeholder: "Deep factors like 'ineffective policies or education gaps'.",
-  helpText: "Go beyond symptoms.",
-  minWords: 10
-}, {
-  id: 'q1b8_solutions',
-  category: 'Possible Solutions',
-  title: "What do you think can be done to reduce or solve it?",
-  placeholder: "Ideas like 'community training programs'.",
-  helpText: "Brainstorm feasible fixes.",
-  minWords: 10
-}, {
-  id: 'q1b9_impact',
-  category: 'Impact of Solution',
-  title: "If this problem were solved, how would your community or the people affected benefit?",
-  placeholder: "E.g., 'improved livelihoods and safer environments'.",
-  helpText: "Envision the positive change.",
-  minWords: 10
-}, {
-  id: 'q1b10_role',
-  category: 'Your Role',
-  title: "What role do you see yourself playing in making this change happen?",
-  placeholder: "E.g., 'leading workshops or advocating for policy'.",
-  helpText: "Link your strengths to action.",
-  minWords: 10
-}];
+const definingQuestions = [
+    { id: 'q1b1_what', category: 'What', title: "What exactly is the problem or issue you've identified?", helpText: "Define the core issue clearly." },
+    { id: 'q1b2_where', category: 'Where', title: "Where does it happen most often? (Community, workplaces, schools, etc.)", helpText: "Narrow the location for focus." },
+    { id: 'q1b3_who', category: 'Who', title: "Who are the main people affected by this problem?", helpText: "Highlight the vulnerable." },
+    { id: 'q1b4_when', category: 'When', title: "When does it usually happen? (Certain seasons, life stages, or times?)", helpText: "Timing reveals patterns." },
+    { id: 'q1b5_why', category: 'Why', title: "Why do you think this problem keeps happening?", helpText: "Uncover the persistence." },
+    { id: 'q1b6_how', category: 'How', title: "How does this issue affect people or the community as a whole?", helpText: "Show the broader ripple." },
+    { id: 'q1b7_root', category: 'Root Causes', title: "What do you think are the main root causes behind this problem?", helpText: "Go beyond symptoms." },
+    { id: 'q1b8_solutions', category: 'Possible Solutions', title: "What do you think can be done to reduce or solve it?", helpText: "Brainstorm feasible fixes." },
+    { id: 'q1b9_impact', category: 'Impact of Solution', title: "If this problem were solved, how would your community or the people affected benefit?", helpText: "Envision the positive change." },
+    { id: 'q1b10_role', category: 'Your Role', title: "What role do you see yourself playing in making this change happen?", helpText: "Link your strengths to action." }
+];
 
 // 🧭 PHASE 1C – PURPOSE ANCHORS (4 QUESTIONS)
-const purposeAnchorQuestions = [{
-  id: 'q1c1_role',
-  title: "Which role would you most prefer to take in addressing this issue?",
-  placeholder: "E.g., Organizer, Connector, Educator, Researcher, Advocate…",
-  helpText: "This helps you clarify how you naturally engage with change."
-}, {
-  id: 'q1c2_clarity',
-  title: "On a scale of 1-5, how clear and meaningful does this problem feel to you right now?",
-  placeholder: "Rate 1 (not clear) – 5 (very clear). Optional: add one comment.",
-  helpText: "Helps track user clarity across iterations."
-}, {
-  id: 'q1c3_commitment',
-  title: "Name one small, realistic action you could take in the next 2-4 weeks to move this problem forward.",
-  placeholder: "E.g., talk to a youth leader, survey your peers, observe your local market…",
-  helpText: "Translates intention into agency."
-}, {
-  id: 'q1c4_impact',
-  title: "Imagine three years from now: what difference would your action make in your community?",
-  placeholder: "Visualize your desired impact.",
-  helpText: "Anchors motivation in long-term purpose."
-}];
+const purposeAnchorQuestions = [
+    { id: 'q1c1_role', title: "Which role would you most prefer to take in addressing this issue?", helpText: "This helps you clarify how you naturally engage with change." },
+    { id: 'q1c2_clarity', title: "On a scale of 1-5, how clear and meaningful does this problem feel to you right now?", helpText: "Helps track user clarity across iterations." },
+    { id: 'q1c3_commitment', title: "Name one small, realistic action you could take in the next 2-4 weeks to move this problem forward.", helpText: "Translates intention into agency." },
+    { id: 'q1c4_impact', title: "Imagine three years from now: what difference would your action make in your community?", helpText: "Anchors motivation in long-term purpose." }
+];
 
 
 // Total questions array (9 + 10 + 4 = 23)
 const questions = discoveryQuestions.concat(definingQuestions, purposeAnchorQuestions);
 
-const skillTags = [{
-  id: 's1',
-  label: 'Problem Solving'
-}, {
-  id: 's2',
-  label: 'Leadership'
-}, {
-  id: 's3',
-  label: 'Mathematics/Science'
-}, {
-  id: 's4',
-  label: 'Creative Writing'
-}, {
-  id: 's5',
-  label: 'Public Speaking'
-}, {
-  id: 's6',
-  label: 'Digital Design'
-}, {
-  id: 's7',
-  label: 'Teamwork/Organizing'
-}, {
-  id: 's8',
-  label: 'Manual/Practical Skills'
-}];
-
-// DOM Elements
-let container, nextButton, backButton, currentStepSpan, conversationLog;
+const skillTags = [
+    { id: 's1', label: 'Problem Solving' }, { id: 's2', label: 'Leadership' },
+    { id: 's3', label: 'Mathematics/Science' }, { id: 's4', label: 'Creative Writing' },
+    { id: 's5', label: 'Public Speaking' }, { id: 's6', label: 'Digital Design' },
+    { id: 's7', label: 'Teamwork/Organizing' }, { id: 's8', label: 'Manual/Practical Skills' }
+];
 
 // --- Phase Intro Text Objects ---
 const phase1AIntro = {
   title: "THE FIRST SPARK",
   purpose: "To help the participant identify a real problem in their community that sparks curiosity, how they came to notice it, and how it affects people around them in a culturally relevant way.",
-  facilitatorFlow: "Now that we've seen how global goals connect to real issues, let's focus on what you've personally noticed in your community that ignites your curiosity."
+  facilitatorFlow: "So, to start, let's focus on what you've personally noticed in your community that ignites your curiosity."
 };
 
 const phase1BIntro = {
@@ -731,414 +564,202 @@ const phase1CIntro = {
   purpose: "To bridge your analysis of the problem with your personal motivation and sense of agency. This phase is about connecting the 'what' to the 'why you'."
 };
 
-let currentPhase = null; // This can remain global as it's derived from state
+
+// --- DOM Elements ---
+let appContainer, appFooter, nextButton, backButton, currentStepSpan; // Main App
+let conversationLog, chatForm, chatInput, sendButton; // Chat-specific
+
+
+// --- [NEW] Main App Router ---
+
+/**
+ * Renders the correct UI based on the session's step index.
+ * index < 0 is Onboarding
+ * index >= 0 is Chat
+ */
+function renderApp() {
+    if (!window.session) {
+        console.error("Session not initialized. Cannot render app.");
+        appContainer.innerHTML = "<p class='text-red-500'>Error: Session could not be loaded.</p>";
+        return;
+    }
+    
+    const index = window.session.current_step_index;
+
+    if (index >= 0) {
+        // --- CHAT MODE ---
+        // User has completed onboarding, show the chat interface
+        renderChatInterface();
+        startChatConversation();
+    } else {
+        // --- ONBOARDING MODE ---
+        // User is in the name/video flow
+        renderOnboardingStep(index);
+    }
+}
+
+/**
+ * [NEW] Renders the static onboarding steps
+ */
+function renderOnboardingStep(index) {
+    console.log("Rendering onboarding step:", index);
+    
+    // Ensure nav buttons are visible
+    if (appFooter) appFooter.style.display = 'flex';
+    if (nextButton) nextButton.textContent = "Continue"; // Default text
+    
+    let templateId = '';
+    let greeting = '';
+    
+    switch(index) {
+        case -4: // Name Capture
+            templateId = 'template-context-name';
+            currentStepSpan.textContent = "Welcome";
+            break;
+        case -3: // Context Intro
+            templateId = 'template-context-intro';
+            currentStepSpan.textContent = "The Big Picture";
+            break;
+        case -2: // SDG Video 1
+            templateId = 'template-context-sdg-video';
+            currentStepSpan.textContent = "Global Goals";
+            break;
+        case -1: // Final Video 2
+            templateId = 'template-context-final-video';
+            currentStepSpan.textContent = "Inspiration";
+            if(nextButton) nextButton.textContent = "Start My Path"; // Final button text
+            break;
+        default:
+            // Fallback to first step
+            templateId = 'template-context-name'; 
+            window.session.current_step_index = -4;
+    }
+
+    const template = document.getElementById(templateId);
+    if (!template) {
+        console.error("Template not found:", templateId);
+        return;
+    }
+    
+    appContainer.innerHTML = ''; // Clear container
+    const content = template.content.cloneNode(true);
+    
+    // Populate placeholders
+    if (index === -3) {
+        greeting = window.session.student_name ? `${window.session.student_name}, to find your purpose,` : "To find your purpose,";
+        const greetingEl = content.querySelector('[data-placeholder="greeting"]');
+        if (greetingEl) greetingEl.textContent = greeting;
+    }
+    
+    // Pre-fill name if we have it
+    if (index === -4 && window.session.student_name) {
+        const nameInput = content.querySelector('#student_name_input');
+        if (nameInput) nameInput.value = window.session.student_name;
+    }
+    
+    appContainer.appendChild(content);
+    updateNavigation();
+}
+
+/**
+ * [NEW] Injects the chat UI and hides the onboarding nav
+ */
+function renderChatInterface() {
+    console.log("Rendering Chat Interface");
+    // Hide onboarding footer
+    if (appFooter) appFooter.style.display = 'none';
+
+    // Get chat template
+    const template = document.getElementById('template-chat-interface');
+    if (!template) {
+        console.error("Chat interface template not found!");
+        return;
+    }
+    
+    appContainer.innerHTML = ''; // Clear container
+    const chatUI = template.content.cloneNode(true);
+    appContainer.appendChild(chatUI);
+    
+    // Find new chat elements
+    conversationLog = document.getElementById('conversation-log');
+    chatForm = document.getElementById('chat-form');
+    chatInput = document.getElementById('chat-input');
+    sendButton = document.getElementById('send-button');
+    
+    // Attach chat listener
+    if (chatForm) {
+        chatForm.addEventListener('submit', handleChatSubmit);
+    } else {
+        console.error("Chat form not found after render!");
+    }
+    
+    // Update header text
+    currentStepSpan.textContent = "Mentor Chat";
+}
+
 
 // --- CONVERSATION LOG UTILITY ---
 
-function appendToLog(sender, message, isTyping = false) {
-  const isUser = sender === 'user';
-  const logItem = document.createElement('div');
-  logItem.className = `p-3 rounded-xl shadow-sm ${isUser ? 'bg-blue-100 ml-auto user-bubble' : 'bg-gray-100 mr-auto ai-bubble'} max-w-[85%] text-sm`;
-  logItem.style.maxWidth = '85%';
-  logItem.style.wordBreak = 'break-word';
+function appendMessage(sender, message, isTyping = false) {
+    if (!conversationLog) {
+        console.warn("Conversation log not found, cannot append message.");
+        return; 
+    }
+    
+    const isUser = sender === 'user';
+    const logItem = document.createElement('div');
+    
+    logItem.className = `p-3 rounded-xl shadow-sm ${isUser ? 'user-bubble' : 'ai-bubble'} max-w-[85%] text-sm`;
+    logItem.style.wordBreak = 'break-word';
 
-  // [NEW] Use dynamic mentor name
-  const name = sender === 'user' ? 'You' : (window.session.mentor_name || 'Mentor');
+    const name = sender === 'user' ? (window.session.student_name || 'You') : (window.session.mentor_name || 'Mentor');
 
-  if (isTyping) {
-    logItem.id = 'ai-typing-indicator';
-    logItem.innerHTML = `<span class="font-semibold">${name}:</span> <span class="animate-pulse">...Thinking...</span>`;
-  } else if (!message || message.trim() === '') {
-    // Avoid empty logs
-    logItem.innerHTML = `<span class="font-semibold">${name}:</span> <span class="text-gray-400">Reflecting...</span>`;
-  } else {
-    logItem.innerHTML = `<span class="font-semibold">${name}:</span> ${message}`;
-  }
-  conversationLog.appendChild(logItem);
-  
-  // [NEW] Auto-scroll to bottom
-  conversationLog.scrollTop = conversationLog.scrollHeight;
+    if (isTyping) {
+        logItem.id = 'ai-typing-indicator';
+        logItem.innerHTML = `<span class="font-semibold">${name}:</span> <span class="animate-pulse">...Thinking...</span>`;
+    } else {
+        // [FIX] Render markdown bold
+        message = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        logItem.innerHTML = `<span class="font-semibold">${name}:</span> ${message}`;
+    }
+
+    const placeholder = conversationLog.querySelector('.text-gray-500');
+    if (placeholder) {
+        placeholder.remove();
+    }
+    
+    conversationLog.appendChild(logItem);
+    conversationLog.scrollTop = conversationLog.scrollHeight;
 }
 
 function removeTypingIndicator() {
   const indicator = document.getElementById('ai-typing-indicator');
-  if (indicator) {
-    indicator.remove();
-  }
+  if (indicator) indicator.remove();
 }
 
-// --- RENDER FUNCTIONS ---
-function renderInitialContext() {
-  // Read state from window.session
-  console.log("Rendering context screen, substep:", window.session.context_sub_step);
-  currentStepSpan.innerHTML = 'THE BIGGER PICTURE'; // [FIX] Updated step name
-  backButton.disabled = window.session.context_sub_step === 0;
+// --- Scaffolding function adapted for chat ---
+async function displayAINudge(userText, currentQuestion, qId) {
+    const session = window.session;
+    session.current_question = currentQuestion;
+    
+    appendMessage('mentor', '', true); // Typing...
+    const result = await handleStudentMessage(userText, session);
 
-  // [FIX] REMOVED the redundant log clearing from this function.
-  /*
-  if (conversationLog.children.length === 1 && conversationLog.children[0].textContent.includes('mentor will appear')) {
-    conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Conversation log cleared.</p>`;
-  }
-  */
+    const currentCount = interventionCounts.get(qId) || 0;
+    interventionCounts.set(qId, currentCount + 1);
 
-  if (window.session.context_sub_step === 0) {
-    // --- Name Capture Screen ---
-    nextButton.textContent = "Let's Go";
-    container.innerHTML = `
-            <div class="initial-context short-section space-y-4 text-center">
-                <h2 class="text-2xl font-bold text-indigo-800">Welcome to your Purpose Pathfinder</h2>
-                <p class="text-base text-gray-700 font-medium">To make this journey personal, what's your first name?</p>
-                <input type="text" id="student_name_input" class="w-full max-w-sm px-4 py-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm" placeholder="E.g., Ama or Kofi">
-            </div>
-        `;
-  } else if (window.session.context_sub_step === 1) {
-    // --- [NEW] Personalized Welcome Screen ---
-    const name = window.session.student_name || 'Innovator'; // Fallback
-    nextButton.textContent = "Continue";
-    container.innerHTML = `
-            <div class="initial-context short-section space-y-4 text-center">
-                <h2 class="text-2xl font-bold text-indigo-800">Welcome, ${name}</h2>
-                <p class="text-lg text-gray-700 font-medium italic">"Innovation begins with the first thought."</p>
-                <p class="text-base text-indigo-600 font-semibold">Let's get started.</p>
-            </div>
-        `;
-  } else if (window.session.context_sub_step === 2) {
-    // --- This is the OLD Step 1 (Connecting Your World) ---
-    const name = window.session.student_name;
-    const greeting = name ? `${name}, to find your purpose,` : "To find your purpose,";
-
-    nextButton.textContent = "Continue";
-    container.innerHTML = `
-            <div class="initial-context short-section space-y-4 text-center">
-                <h2 class="text-2xl font-bold text-indigo-800">Connecting Your World</h2>
-                <p class="text-base text-gray-700 font-medium">${greeting} we first need to see how community challenges connect to the big picture—a global roadmap (like the UN SDGs).</p>
-                <p class="text-base text-indigo-600 font-semibold">Ready to see where your curiosity fits in?</p>
-            </div>
-        `;
-  } else if (window.session.context_sub_step === 3) {
-    // --- This is the OLD Step 2 (SDG Video) ---
-    nextButton.textContent = "Continue";
-    container.innerHTML = `
-            <div class="short-section space-y-4 text-center">
-                <h2 class="text-2xl font-bold text-indigo-800">The Global Roadmap: 17 SDGs</h2>
-                <div class="p-2 bg-white rounded-xl shadow-lg border border-gray-200">
-                    <p class="text-sm text-gray-700 font-medium mb-2">Watch this short video explaining the 17 Sustainable Development Goals</p>
-                    <div class="video-container rounded-xl shadow-lg border border-indigo-300">
-                        <iframe 
-                            src="https://www.youtube.com/embed/7dzFbP2AgFo?rel=0&modestbranding=1" 
-                            title="17 Sustainable Development Goals Explained" 
-                            frameborder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                            allowfullscreen
-                        ></iframe>
-                    </div>
-                </div>
-            </div>
-        `;
-  } else if (window.session.context_sub_step === 4) {
-    // --- This is the OLD Step 3 (Reflection Questions) ---
-    nextButton.textContent = "Watch Video";
-    container.innerHTML = `
-            <div class="short-section space-y-4">
-                <h2 class="text-2xl font-bold text-indigo-800">See a Solution in Action</h2>
-                <div class="text-gray-700 space-y-2">
-                    <p class="text-base font-medium">To gain inspiration, reflect on these as you watch how others are solving similar problems globally and locally.</p>
-                    <h3 class="text-lg font-semibold text-gray-700">Reflection Questions:</h3>
-                    <ul class="list-disc list-inside ml-4 text-sm space-y-1 reflection-list">
-                        <li>What stood out to you in this story?</li>
-                        <li>How did they approach the problem?</li>
-                        <li>Which idea could work in your community?</li>
-                    </ul>
-                </div>
-            </div>
-        `;
-  } else if (window.session.context_sub_step === 5) {
-    // --- This is the OLD Step 4 (Final Video) ---
-    nextButton.textContent = initialScreen.buttonText;
-    container.innerHTML = `
-            <div class="short-section space-y-4">
-                <h2 class="text-2xl font-bold text-indigo-800">Watch the Video</h2>
-                <div class="text-gray-700 text-center">
-                    <div class="video-container rounded-xl shadow-lg border border-indigo-300">
-                        <iframe 
-                            src="https://www.youtube.com/embed/IqGxel7qdP4?rel=0&modestbranding=1" 
-                            title="Youth Employment Solutions Video" 
-                            frameborder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                            allowfullscreen
-                        ></iframe>
-                    </div>
-                    <p class="text-base text-indigo-600 font-semibold pt-1">Click 'I Understand' to proceed to Question 1.</p>
-                </div>
-            </div>
-        `;
-  }
+    removeTypingIndicator();
+    appendMessage(session.mentor_name, result.assistant_reply);
+    
+    if(chatInput) chatInput.disabled = false;
+    if(sendButton) sendButton.disabled = false;
+    if(chatInput) chatInput.focus();
 }
 
-// --- [RE-DESIGNED FUNCTION] ---
-function renderStep1Question() {
-  // Read state from window.session
-  console.log("Rendering question, index:", window.session.current_step_index, "phase intro:", window.session.phase_intro_sub_step);
-  const q = questions[window.session.current_step_index];
-  const savedAnswer = window.session.answers[window.session.current_step_index] || '';
-
-  // Define phase boundaries
-  const isFirstInPhase1A = window.session.current_step_index === 0;
-  const isFirstInPhase1B = window.session.current_step_index === discoveryQuestions.length; // 9
-  const isFirstInPhase1C = window.session.current_step_index === (discoveryQuestions.length + definingQuestions.length); // 19
-
-  // Reset intervention count on new question render
-  interventionCounts.set(q.id, 0);
-
-  // --- Render Phase Intro Screens ---
-  if (isFirstInPhase1A && window.session.phase_intro_sub_step === 0) {
-    nextButton.textContent = "Start Questions";
-    backButton.disabled = false;
-    container.innerHTML = `
-            <div class="phase-intro short-section space-y-4 text-center">
-                <h2 class="text-2xl font-bold text-indigo-800">🧩 ${phase1AIntro.title}</h2>
-                <div class="bg-indigo-50 p-4 rounded-xl border-2 border-indigo-200 text-left">
-                    <h3 class="text-lg font-semibold text-indigo-800 mb-2">🎯 Purpose:</h3>
-                    <p class="text-gray-700 mb-3">${phase1AIntro.purpose}</p>
-                    <blockquote class="text-indigo-600 italic border-l-4 border-indigo-400 pl-3">
-                        <p>${phase1AIntro.facilitatorFlow}</p>
-                    </blockquote>
-                </div>
-            </div>
-        `;
-    currentStepSpan.innerHTML = 'Identify area of change'; // [FIX] Updated step name
-    return;
-  }
-
-  if (isFirstInPhase1B && window.session.phase_intro_sub_step === 0) {
-    nextButton.textContent = "Start Questions";
-    backButton.disabled = false;
-    container.innerHTML = `
-            <div class="phase-intro short-section space-y-4 text-center">
-                <h2 class="text-2xl font-bold text-indigo-800">⚙️ ${phase1BIntro.title}</h2>
-                <div class="bg-indigo-50 p-4 rounded-xl border-2 border-indigo-200 text-left">
-                    <h3 class="text-lg font-semibold text-indigo-800 mb-2">🎯 Purpose:</h3>
-                    <p class="text-gray-700">${phase1BIntro.purpose}</p>
-                </div>
-            </div>
-        `;
-    currentStepSpan.innerHTML = 'Identify area of change'; // [FIX] Updated step name
-    return;
-  }
-
-  if (isFirstInPhase1C && window.session.phase_intro_sub_step === 0) {
-    nextButton.textContent = "Start Questions";
-    backButton.disabled = false;
-    container.innerHTML = `
-            <div class="phase-intro short-section space-y-4 text-center">
-                <h2 class="text-2xl font-bold text-indigo-800">🧭 ${phase1CIntro.title}</h2>
-                <div class="bg-indigo-50 p-4 rounded-xl border-2 border-indigo-200 text-left">
-                    <h3 class="text-lg font-semibold text-indigo-800 mb-2">🎯 Purpose:</h3>
-                    <p class="text-gray-700">${phase1CIntro.purpose}</p>
-                </div>
-            </div>
-        `;
-    currentStepSpan.innerHTML = 'Identify area of change'; // [FIX] Updated step name
-    return;
-  }
-
-  // --- Render the Actual Question UI ---
-
-  // Check for category (for Phase 1B)
-  let categoryHTML = q.category ? `<p class="text-sm font-semibold text-indigo-600 mb-1">${q.category.toUpperCase()}</p>` : '';
-
-  // [FIX] Build the new CLEAN UI, removing the repetitive phase title
-  container.innerHTML = `
-        <div class="question-section short-section space-y-4">
-            <div class="p-5 bg-white rounded-xl shadow-lg border border-gray-200 space-y-3">
-                ${categoryHTML}
-                
-                <label for="${q.id}" class="block text-xl font-semibold text-gray-800">${q.title}</label>
-                
-                <p class="text-sm text-gray-500 mb-0">${q.helpText || ''}</p>
-                
-                <textarea id="${q.id}" rows="5" 
-                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
-                    placeholder="${q.placeholder}"
-                >${savedAnswer}</textarea>
-            </div>
-        </div>
-    `;
-
-  nextButton.textContent = "Continue";
-  currentStepSpan.innerHTML = 'Identify area of change'; // [FIX] Updated step name
-  backButton.disabled = false;
-}
-// --- [END RE-DESIGNED FUNCTION] ---
-
-
-// --- [NEW FUNCTION] ---
-// Renders the "Guided Refinement" screen
-function renderValidationScreen() {
-  currentStepSpan.innerHTML = 'Identify area of change'; // [FIX] Updated step name
-  const name = window.session.student_name ? `, ${window.session.student_name}` : '';
-  
-  // Key question indexes
-  const who_idx = discoveryQuestions.length + 2; // q1b3_who (index 11)
-  const what_idx = discoveryQuestions.length;     // q1b1_what (index 9)
-  const why_idx = discoveryQuestions.length + 4;  // q1b5_why (index 13)
-
-  container.innerHTML = `
-        <div class="validation-section short-section space-y-4">
-            <h2 class="text-2xl font-bold text-indigo-800 text-center">Here is your Problem Statement${name}</h2>
-            
-            <div id="summary-display" class="p-4 bg-indigo-50 border-2 border-indigo-300 rounded-xl shadow-inner">
-                <p class="text-gray-700 italic">${window.session.current_summary}</p>
-            </div>
-
-            <div class="flex items-center justify-center space-x-4 pt-2">
-                <button id="validation-approve-btn" class="bg-green-600 text-white px-5 py-2 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition duration-150">
-                    Looks Good! Let's Continue
-                </button>
-                <button id="validation-refine-btn" class="bg-gray-500 text-white px-5 py-2 rounded-xl font-semibold shadow-lg hover:bg-gray-600 transition duration-150">
-                    I'd like to change something
-                </button>
-            </div>
-
-            <div id="refine-panel" class="hidden space-y-4 pt-4 mt-4 border-t border-gray-300">
-                <p class="text-lg font-semibold text-gray-700">No problem! Let's refine the key parts.</p>
-                
-                <div class="space-y-3">
-                    <div>
-                        <label for="refine_what" class="block text-sm font-medium text-gray-700">${questions[what_idx].title}</label>
-                        <textarea id="refine_what" rows="2" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-xl shadow-sm">${window.session.answers[what_idx] || ''}</textarea>
-                    </div>
-                    <div>
-                        <label for="refine_who" class="block text-sm font-medium text-gray-700">${questions[who_idx].title}</label>
-                        <textarea id="refine_who" rows="2" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-xl shadow-sm">${window.session.answers[who_idx] || ''}</textarea>
-                    </div>
-                    <div>
-                        <label for="refine_why" class="block text-sm font-medium text-gray-700">${questions[why_idx].title}</label>
-                        <textarea id="refine_why" rows="2" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-xl shadow-sm">${window.session.answers[why_idx] || ''}</textarea>
-                    </div>
-                </div>
-
-                <button id="regenerate-summary-btn" class="bg-indigo-600 text-white px-5 py-2 rounded-xl font-semibold shadow-lg hover:bg-indigo-700 transition duration-150">
-                    Re-generate Summary with My Changes
-                </button>
-            </div>
-        </div>
-    `;
-
-  // Attach new event listeners
-  document.getElementById('validation-approve-btn').addEventListener('click', handleValidationApproval);
-  document.getElementById('validation-refine-btn').addEventListener('click', () => toggleRefineEditor(true));
-  document.getElementById('regenerate-summary-btn').addEventListener('click', handleRegenerateSummary);
-}
-// --- [END NEW FUNCTION] ---
-
-function renderStep2() {
-  conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Phase 1 complete. Starting Step 2 guidance.</p>`;
-
-  // [FIX] Updated index
-  currentStepSpan.innerHTML = 'Your strength and interest'; // [FIX] Updated step name
-  // Read state from window.session
-  const selectedTagsHTML = window.session.selected_skills.map(tagId => {
-    const tag = skillTags.find(t => t.id === tagId);
-    return tag ? `<span class="tag-pill inline-flex items-center px-3 py-1 mr-2 mb-2 text-sm font-medium bg-indigo-100 text-indigo-700 rounded-full cursor-pointer" data-tag-id="${tag.id}">${tag.label} &times;</span>` : '';
-  }).join('');
-
-  const availableTagsHTML = skillTags.filter(tag => !window.session.selected_skills.includes(tag.id)).map(tag => `
-        <span class="tag-pill inline-flex items-center px-3 py-1 mr-2 mb-2 text-sm font-medium bg-gray-200 text-gray-700 rounded-full hover:bg-indigo-200 cursor-pointer" data-tag-id="${tag.id}">${tag.label}</span>
-    `).join('');
-
-  // Read optionalText from saved answers
-  const savedAnswer = window.session.answers[questions.length] || {}; // Index 23
-  const optionalText = savedAnswer.optionalText || '';
-
-  container.innerHTML = `
-        <div class="space-y-6">
-            <h2 class="text-xl font-semibold text-gray-800">Step 2: Your Skills & Interests</h2>
-            <p class="text-sm text-gray-600">Choose between 3 and 5 tags that best describe your core skills and passions.</p>
-            
-            <div id="selected-tags" class="min-h-[40px] p-2 border-2 border-indigo-200 rounded-xl bg-indigo-50">
-                ${selectedTagsHTML || '<p class="text-gray-400 text-sm">Select 3-5 tags below...</p>'}
-            </div>
-
-            <div id="available-tags-container" class="mt-4">
-                ${availableTagsHTML}
-            </div>
-
-            <label for="s2_optional_text" class="block pt-4 text-lg font-medium text-gray-700">Optional: Tell us more about a skill.</label>
-            <textarea id="s2_optional_text" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm" placeholder="e.g., 'I learned basic web design from YouTube and want to use it for impact.'">${optionalText}</textarea>
-        </div>
-    `;
-
-  document.querySelectorAll('.tag-pill').forEach(tag => {
-    tag.addEventListener('click', handleTagClick);
-  });
-  updateNavigation();
-}
-
-function renderStep3Completion() {
-  conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Step 2 complete. Ready for analysis.</p>`;
-
-  // [FIX] Updated index
-  currentStepSpan.innerHTML = 'Your strength and interest'; // [FIX] Updated step name
-  nextButton.textContent = "Go to Step 4";
-  nextButton.disabled = false;
-
-  // Read state from window.session
-  const profileResultHTML = window.session.profile_generated ?
-    `<div id="profile-output" class="p-6 bg-indigo-50 border-2 border-indigo-300 rounded-xl shadow-inner mt-4">
-            <p class="text-center text-gray-500">Generating your purpose profile...</p>
-        </div>` :
-    `<div id="profile-output" class="p-6 bg-gray-100 border-2 border-gray-300 rounded-xl shadow-inner mt-4">
-            <p class="text-center text-gray-500">Click the button below to get your profile.</p>
-        </div>`;
-
-  container.innerHTML = `
-        <div class="space-y-6 text-center">
-            <h2 class="text-2xl font-bold text-indigo-700">Section Complete! 🎉</h2>
-            <p class="text-gray-600">You've clearly defined the problem and your skills. Let's see your potential mission.</p>
-            
-            ${profileResultHTML}
-
-            <button id="generate-profile-btn" class="bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-purple-700 transition duration-150 disabled:bg-purple-300">
-                ✨ Generate My Purpose Profile
-            </button>
-            
-            <p class="text-sm text-gray-500 pt-4">Next, we filter by your academic results.</p>
-        </div>
-    `;
-
-  document.getElementById('generate-profile-btn').addEventListener('click', generateProfileSummary);
-
-  if (window.session.profile_generated) {
-    document.getElementById('generate-profile-btn').disabled = true;
-  }
-}
-
-function renderStep() {
-  // Read state from window.session
-  console.log("RenderStep called - currentStepIndex:", window.session.current_step_index, "contextSubStep:", window.session.context_sub_step);
-  
-  // --- [NEW] Check for validation state first
-  if (window.session.awaiting_validation) {
-    renderValidationScreen();
-  } else if (window.session.current_step_index === -1) {
-    renderInitialContext();
-  } else if (window.session.current_step_index < questions.length) { // 0-22
-    renderStep1Question();
-  } else if (window.session.current_step_index === questions.length) { // 23
-    renderStep2();
-  } else { // 24
-    renderStep3Completion();
-  }
-  updateNavigation();
-}
-
-// Updated threshold check using scaffolding analyzer (returns true if intervention needed)
 async function checkThresholds(text, currentQuestion, qId) {
   const signals = await analyzeInput(text, currentQuestion);
   const decision = decideAction(signals, currentQuestion);
 
-  // Check intervention limit
   const currentCount = interventionCounts.get(qId) || 0;
   const forceProceed = currentCount >= THRESHOLDS.MAX_INTERVENTIONS;
 
@@ -1152,445 +773,439 @@ async function checkThresholds(text, currentQuestion, qId) {
   return decision.action !== 'minimal_validation' && decision.action !== 'no_intervene';
 }
 
-// Updated nudge using scaffolding handler (increments count)
-async function displayAINudge(userText, currentQuestion, qId) {
-  const session = window.session;
-  session.current_question = currentQuestion;
-  const result = await handleStudentMessage(userText, session);
-  // saveSession is already called inside handleStudentMessage
 
-  // Increment intervention count
-  const currentCount = interventionCounts.get(qId) || 0;
-  interventionCounts.set(qId, currentCount + 1);
+// --- CHAT LOGIC FUNCTIONS ---
 
-  appendToLog('mentor', null, true);
-  removeTypingIndicator();
-  appendToLog('mentor', result.assistant_reply);
+/**
+ * Kicks off the chat conversation
+ */
+function startChatConversation() {
+    const name = window.session.student_name;
+    const topic = window.session.previous_topic;
+
+    if (!conversationLog) {
+        console.error("Cannot start chat, conversation log not ready.");
+        return;
+    }
+    conversationLog.innerHTML = ''; // Clear placeholder
+    
+    // Check if user is returning mid-conversation
+    // [NEW] State shift: 5 is the first question
+    if (topic && window.session.current_step_index >= 5) {
+        // --- RETURNING USER (mid-conversation) ---
+        appendMessage('mentor', `Welcome back, ${name}! Last time, we started talking about ${topic}. Let's build on that thought.`);
+        setTimeout(askCurrentQuestion, 1500); // Ask question they left off on
+    } else {
+        // --- NEW USER or REWATCHER ---
+        // State is current_step_index = 0
+        window.session.current_step_index = 0; // Ensure it's 0
+        askCurrentQuestion(); // This will ask the welcome message
+    }
 }
 
-// --- [RE-BUILT LOGIC] ---
-// This function now handles all phase transitions intelligently.
-async function proceedToNext(answer) {
-  // 1. Save the answer
-  window.session.answers[window.session.current_step_index] = answer;
-  
-  // [NEW] Save topic for "Mentor Memory Thread"
-  if (window.session.current_step_index === 0) { // If this is the first question
-      window.session.previous_topic = summarizeTextShort(answer);
-  }
 
-  // 2. Define phase boundaries
-  const endOfPhase1A_idx = discoveryQuestions.length - 1; // 8
-  const endOfPhase1B_idx = discoveryQuestions.length + definingQuestions.length - 1; // 18
-  const endOfPhase1C_idx = questions.length - 1; // 22
-
-  // 3. Handle transitions
-  if (window.session.current_step_index === endOfPhase1B_idx) {
-    // --- [NEW] Transition to Validation Screen ---
-    window.session.phase_completed = "1B"; // [NEW] Mark phase as complete
-    appendToLog('mentor', null, true);
-    // Summarize all answers from Phase 1A and 1B
-    const problemSummary = await generateFinalProblemSummary(...window.session.answers.slice(0, endOfPhase1B_idx + 1));
-    removeTypingIndicator();
-    appendToLog('mentor', "Great, you've defined the problem. Here's a summary of your thoughts..."); // Transition message
+/**
+ * Asks the question based on the current step index.
+ * (This no longer handles onboarding)
+ */
+async function askCurrentQuestion() {
+    const index = window.session.current_step_index;
+    let questionAsked = false; // Flag to see if we asked a question
+    const mentorName = window.session.mentor_name || "Mentor";
     
-    window.session.current_summary = problemSummary;
-    window.session.awaiting_validation = true;
-    // We DON'T increment step_index. We stay on index 18.
+    // --- [NEW] Handle Chat Welcome Step ---
+    if (index === 0) {
+        const name = window.session.student_name || "friend";
+        
+        if (window.session.has_rewatched) {
+            // --- User has rewatched ---
+            appendMessage(mentorName, `Welcome back, ${name}. I believe you are ready now?`);
+            // We set a special state 100 to handle this "yes/no"
+            window.session.current_step_index = 100;
+        } else {
+            // --- First-time welcome ---
+            appendMessage(mentorName, `${getTimeGreeting()}, ${name}.`);
+        }
+        questionAsked = true; // We are waiting for a response
     
-    setTimeout(() => renderStep(), 1500); // Give time to read message
+    } else if (index === 1) {
+        // --- Ask about SDGs ---
+        appendMessage(mentorName, `I see you've just finished reviewing the SDGs and those inspiring solutions. It's a lot to take in, isn't it?`);
+        questionAsked = true;
 
-  } else if (window.session.current_step_index === endOfPhase1C_idx) {
-    // --- Transition from 1C to Skills (Step 2) ---
-    window.session.phase_completed = "1C"; // [NEW] Mark phase as complete
-    // Use a fast, hardcoded transition
-    appendToLog('mentor', "Thank you. That's a powerful vision for the future. Let's now move on to Step 2: Your Skills and Interests.");
+    } else if (index === 2) {
+        // --- Ask to Continue/Rewatch ---
+        appendMessage(mentorName, "Are you ready to continue and start exploring your own purpose path, or would you like to go back and re-watch the videos? Just type **'continue'** or **'rewatch'**.");
+        questionAsked = true;
 
-    window.session.current_step_index++; // Move to 23
-    renderStep(); // Renders Skills page
+    } else if (index === 3) {
+        // --- Set Context ---
+        appendMessage(mentorName, `Great. ${phase1AIntro.facilitatorFlow}`);
+        await new Promise(r => setTimeout(r, 2000)); // Pause
+        appendMessage(mentorName, "That's the first step to finding a problem you truly care about... don't you think?");
+        questionAsked = true; // Waiting for "yes"
 
-  } else {
-    // --- Normal question-to-question transition ---
-    window.session.current_step_index++; // Move to next question index
+    } else if (index === 4) {
+        // --- Ask First Question ---
+        // This state is just a buffer, we move to state 5 to ask Q[0]
+        window.session.current_step_index = 5;
+        askCurrentQuestion(); // Ask questions[0]
+        return; // Exit to avoid double-enabling input
 
-    // Check if we hit the 1A -> 1B intro
-    if (window.session.current_step_index === discoveryQuestions.length) {
-      window.session.phase_completed = "1A"; // [NEW] Mark phase as complete
-      window.session.phase_intro_sub_step = 0; // Trigger 1B intro
+    // --- Handle Phase Intros (for later phases) ---
+    // Note: index is shifted by +5
+    } else if (index === (discoveryQuestions.length + 5)) { // 9 + 5 = 14
+        appendMessage(mentorName, `Great, that's Phase 1A done. Now for Phase 1B: ${phase1BIntro.purpose}`);
+        await new Promise(r => setTimeout(r, 1500));
+    
+    } else if (index === (discoveryQuestions.length + definingQuestions.length + 5)) { // 9 + 10 + 5 = 24
+        appendMessage(mentorName, `Excellent. Let's move to Phase 1C: ${phase1CIntro.purpose}`);
+        await new Promise(r => setTimeout(r, 1500));
     }
-    // Check for 1B -> 1C intro
-    if (window.session.current_step_index === (discoveryQuestions.length + definingQuestions.length)) {
-      window.session.phase_intro_sub_step = 0; // Trigger 1C intro
+
+    // --- Handle Asking the Question (Note the 'index - 5' shift) ---
+    const questionIndex = index - 5; // 5 -> 0, 6 -> 1, etc.
+    
+    if (questionIndex >= 0 && questionIndex < questions.length) {
+        const q = questions[questionIndex];
+        window.session.current_question = q.title; 
+        appendMessage(mentorName, q.title); 
+        questionAsked = true;
+        
+        if (q.helpText) {
+            setTimeout(() => appendMessage(mentorName, `(Hint: ${q.helpText})`), 1000);
+        }
+        interventionCounts.set(q.id, 0);
+
+    } else if (questionIndex === questions.length) { // 23 + 5 = 28
+        appendMessage(mentorName, "You've finished all the questions! Now, let's move to Step 2. What are 3-5 of your core skills or passions? You can just list them.");
+        questionAsked = true;
+    
+    } else if (questionIndex > questions.length && index < 100) { // Check < 100 to avoid rewatch loop
+        appendMessage(mentorName, "You've completed this part of the path!");
+        if(chatInput) chatInput.disabled = true;
+        if(sendButton) sendButton.disabled = true;
     }
-
-
-    const nextQ = questions[window.session.current_step_index];
-    appendToLog('mentor', null, true);
-    const echo = await generateSmartTransition(answer, nextQ.title);
-    removeTypingIndicator();
-    appendToLog('mentor', echo);
-
-    setTimeout(() => renderStep(), 1500);
-  }
-
-  // 4. Reset intervention count for the *new* question (if it exists)
-  if (questions[window.session.current_step_index]) {
-    interventionCounts.set(questions[window.session.current_step_index].id, 0);
-  }
-
-  // 5. Save state
-  await saveSession();
+    
+    // Re-enable input
+    if (questionAsked) {
+        if(chatInput) chatInput.disabled = false;
+        if(sendButton) sendButton.disabled = false;
+        if(chatInput) chatInput.focus();
+    }
 }
-// --- [END RE-BUILT LOGIC] ---
+
+/**
+ * Handles user chat submissions.
+ */
+async function handleChatSubmit(event) {
+    event.preventDefault();
+    if (!chatInput) return; // Guard
+    
+    const userInput = chatInput.value.trim();
+    if (userInput === '') return;
+
+    appendMessage('user', userInput);
+    chatInput.value = '';
+    chatInput.disabled = true;
+    sendButton.disabled = true;
+
+    // --- STATE-BASED LOGIC ---
+    const index = window.session.current_step_index;
+    const lowerInput = userInput.toLowerCase();
+    const positiveReply = ['yes', 'yep', 'ya', 'sure', 'ok', 'okay', 'ready', 'i am', 'i think so', 'continue'];
+    const mentorName = window.session.mentor_name || "Mentor";
+    
+    // Add a slight, human-like delay
+    await new Promise(r => setTimeout(r, 500 + Math.random() * 800)); // Variable delay
+
+    if (index === 0) {
+        // --- 1. User replied to "Good morning" ---
+        window.session.current_step_index = 1;
+        await saveSession();
+        askCurrentQuestion(); // Asks about SDGs
+        
+    } else if (index === 1) {
+        // --- 2. User replied to "isn't it?" ---
+        window.session.current_step_index = 2;
+        await saveSession();
+        askCurrentQuestion(); // Asks "continue or rewatch?"
+    
+    } else if (index === 2) {
+        // --- 3. Processing "Continue" or "Rewatch" ---
+        if (lowerInput.includes('rewatch')) {
+            // Send user back to onboarding
+            window.session.current_step_index = -1; // Back to last video
+            window.session.has_rewatched = true; // [NEW] Set rewatch flag
+            await saveSession();
+            renderApp(); // This will re-render the static onboarding
+        } else {
+            // Assume "continue"
+            window.session.current_step_index = 3; // Move to "Set Context" step
+            await saveSession();
+            askCurrentQuestion(); // Asks "...don't you think?"
+        }
+    
+    } else if (index === 3) {
+        // --- 4. Processing "Ready for Q1" ---
+        // Any positive affirmation works
+        window.session.current_step_index = 5; // Move to first question (skipping 4)
+        await saveSession();
+        askCurrentQuestion(); // Asks questions[0]
+        
+    } else if (index >= 5 && (index - 5) < questions.length) {
+        // --- 5. Processing a Question Answer ---
+        const questionIndex = index - 5; // 5 -> 0, 6 -> 1
+        const q = questions[questionIndex];
+        const needsNudge = await checkThresholds(userInput, q.title, q.id);
+
+        if (needsNudge) {
+            // --- A. Answer is weak, needs nudge ---
+            expectingRefined = true;
+            await displayAINudge(userInput, q.title, q.id);
+            
+        } else {
+            // --- B. Answer is good, proceed ---
+            expectingRefined = false;
+            window.session.answers[questionIndex] = userInput; 
+            if (questionIndex === 0) {
+                 window.session.previous_topic = summarizeTextShort(userInput);
+            }
+            
+            appendMessage('mentor', '', true); // Typing...
+            
+            let transition;
+            const nextQ = questions[questionIndex + 1];
+            
+            if (nextQ) {
+                 transition = await generateSmartTransition(userInput, nextQ.title);
+            } else {
+                transition = "Got it. That's a very clear point.";
+            }
+            
+            await new Promise(r => setTimeout(r, 1000)); // Human delay
+            removeTypingIndicator();
+            appendMessage(mentorName, transition); 
+            
+            window.session.current_step_index++; // e.g., 5 -> 6
+            await saveSession();
+            
+            setTimeout(askCurrentQuestion, 2000); // Wait for transition, then ask
+        }
+    
+    } else if (index === 100) {
+        // --- 6.A. Handling "Ready now?" after rewatch ---
+        if (positiveReply.some(w => lowerInput.includes(w))) {
+            window.session.current_step_index = 3; // Move to "Set Context"
+            await saveSession();
+            askCurrentQuestion();
+        } else {
+            appendMessage(mentorName, "No problem at all. Is there anything you're still unsure about?");
+            window.session.current_step_index = 101; // Move to "why not"
+            await saveSession();
+            // Re-enable input
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+            chatInput.focus();
+        }
+
+    } else if (index === 101) {
+        // --- 6.B. User explained why they're not ready ---
+        appendMessage(mentorName, "That's understandable. This session is all about exploring your own ideas, so there's no pressure. It's just a space for you to think.");
+        await new Promise(r => setTimeout(r, 2000));
+        appendMessage(mentorName, "Can we start now?");
+        window.session.current_step_index = 102; // Move to final check
+        await saveSession();
+        // Re-enable input
+        chatInput.disabled = false;
+        sendButton.disabled = false;
+        chatInput.focus();
+        
+    } else if (index === 102) {
+        // --- 6.C. Final check ---
+         if (positiveReply.some(w => lowerInput.includes(w))) {
+            window.session.current_step_index = 3; // Move to "Set Context"
+            await saveSession();
+            askCurrentQuestion();
+        } else {
+            appendMessage(mentorName, "That's alright. Feel free to re-watch again. I'll be here when you're ready.");
+            window.session.current_step_index = 2; // Back to "continue/rewatch"
+            await saveSession();
+            // Re-enable input
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+            chatInput.focus();
+        }
+
+    } else {
+        // --- 7. Processing Skills or End of Convo ---
+        appendMessage(mentorName, "Thanks! (Logic for this step is next).");
+        chatInput.disabled = false;
+        sendButton.disabled = false;
+        await saveSession();
+    }
+}
+
+// --- [REVIVED] ONBOARDING HANDLERS ---
+
+async function handleNext() {
+    const index = window.session.current_step_index;
+    
+    // --- Handle Name Capture (only on this step) ---
+    if (index === -4) {
+        const nameInput = document.getElementById('student_name_input');
+        if (!nameInput) {
+            console.error("Name input not found!");
+            return;
+        }
+        const studentName = nameInput.value.trim() || '';
+        if (studentName.length < 2) {
+            alert("Please enter your first name.");
+            return; // Stop execution
+        }
+        window.session.student_name = studentName;
+    }
+    
+    // Increment step
+    if (index < -1) { // i.e., -4, -3, -2
+        window.session.current_step_index++; // e.g., -4 -> -3
+    } else if (index === -1) { // On the *last* onboarding step
+        window.session.current_step_index = 0; // Go to chat mode
+    }
+    
+    await saveSession();
+    renderApp(); // Re-render at the new step
+}
+
+async function handleBack() {
+    const index = window.session.current_step_index;
+    if (index > -4) { // Only allow back if not on the first step
+        window.session.current_step_index--; // e.g., -3 -> -4
+        await saveSession();
+        renderApp();
+    }
+}
+
+function updateNavigation() {
+    // This is for the onboarding buttons
+    const index = window.session.current_step_index;
+    if (backButton) {
+        backButton.disabled = (index === -4); // Disable back on first step
+    }
+}
 
 
-// --- [UPDATED PROMPT] ---
+// --- OTHER FUNCTIONS ---
 async function generateFinalProblemSummary(...problemAnswers) {
   const dataPoints = problemAnswers.map((answer, index) => {
     let category = '';
-    // Only use questions from Phase 1A and 1B for this summary
-    if (index < discoveryQuestions.length + definingQuestions.length) { 
-      if (index < discoveryQuestions.length) {
-        category = 'DISCOVERY - ' + discoveryQuestions[index].title.replace(/Question \d+: /, '');
+    // Note: The question index is now (index - 5)
+    const questionIndex = index - 5;
+    if (questionIndex < discoveryQuestions.length + definingQuestions.length) {  
+      if (questionIndex < discoveryQuestions.length) {
+        category = 'DISCOVERY - ' + discoveryQuestions[questionIndex].title.replace(/Question \d+: /, '');
       } else {
-        const defIndex = index - discoveryQuestions.length;
+        const defIndex = questionIndex - discoveryQuestions.length;
         const defQ = definingQuestions[defIndex];
         category = `DEFINING - ${defQ.category ? defQ.category + ': ' : ''}` + defQ.title.replace(/Question \d+: /, '');
       }
       return `${category}: ${answer}`;
     }
     return null;
-  }).filter(Boolean).join('\n'); // filter(Boolean) removes nulls
+  }).filter(Boolean).join('\n'); 
 
   const summaryPrompt = `
         Summarize the student's problem into ONE concise, validating summary (max 2-3 sentences). 
         The summary must integrate the following data points into a clear narrative:
-        
         ${dataPoints}
-        
         Example: "In the Oforikrom area, many young graduates face joblessness due to limited access to practical training. This situation affects income stability and community growth. Addressing it could empower local youth and reduce underemployment."
-        
         Respond only with the summary text.
     `;
-
   const summaryInstruction = `You are a supportive mentor. Your output must be a single, validating summary paragraph (max 2-3 sentences). Your tone must be validating and smooth. Do not add any intro or outro text like "Here is the summary:".`;
-
   return callGeminiAPI(summaryInstruction, summaryPrompt);
 }
-// --- [END UPDATED PROMPT] ---
 
 async function generateProfileSummary() {
-  // Write state to window.session
-  window.session.phase_completed = "3"; // [NEW] Mark phase as complete
+  window.session.phase_completed = "3";
   window.session.profile_generated = true;
-  renderStep3Completion();
+  console.log("generateProfileSummary needs to be adapted for chat UI");
+  
+  appendMessage('mentor', '', true); // Typing...
 
-  const outputDiv = document.getElementById('profile-output');
-  const generateButton = document.getElementById('generate-profile-btn');
-
-  if (!outputDiv || !generateButton) return;
-
-  outputDiv.innerHTML = `<div class="flex items-center justify-center space-x-2 text-indigo-700">
-                            <div class="h-4 w-4 border-2 border-t-2 border-t-indigo-500 border-gray-200 rounded-full animate-spin"></div>
-                            <span>Analyzing purpose...</span>
-                        </div>`;
-  generateButton.disabled = true;
-
-  // Read state from window.session
-  // [FIX] Update index for answers (0-22) and skills (23)
-  const problemStatement = `Problem: Q1: ${window.session.answers[0]} | Q2: ${window.session.answers[1]} | Q9: ${window.session.answers[8]}`;
-  const skillsData = window.session.answers[questions.length] || { tags: [], optionalText: '' }; // Index 23
+  // Note: The question indices are shifted by 5
+  const problemStatement = `Problem: Q1: ${window.session.answers[5]} | Q2: ${window.session.answers[6]} | Q9: ${window.session.answers[13]}`;
+  const skillsData = window.session.answers[questions.length + 5] || { tags: [], optionalText: '' }; 
   const skills = `Skills: ${skillsData.tags?.map(id => skillTags.find(s => s.id === id)?.label).join(', ') || ''}. Optional: ${skillsData.optionalText || ''}`;
 
   const systemInstruction = `You are an inspirational pathfinder for Ghanaian students. Generate:
     1. An aspirational Mission Title (5-7 words max).
     2. A single encouraging sentence about their path.
     Format: [MISSION TITLE] | [PATH SUMMARY]`;
-
   const userQuery = `Student Profile:\n${problemStatement}\n${skills}`;
   const rawResponse = await callGeminiAPI(systemInstruction, userQuery);
-
+  
+  removeTypingIndicator();
   const [title, summary] = rawResponse.split('|').map(s => s.trim());
 
   if (title && summary) {
-    outputDiv.innerHTML = `
-            <p class="text-lg font-extrabold text-indigo-800 tracking-wide">${title}</p>
-            <p class="text-sm text-gray-700 mt-2">${summary}</p>
-            <p class="text-xs text-green-600 mt-3">✨ Powered by Gemini</p>
-        `;
+    appendMessage('mentor', `Here is your Purpose Profile:\n\n**${title}**\n${summary}`);
   } else {
-    outputDiv.innerHTML = `<p class="text-red-500">Error generating profile. Please try again.</p>`;
-    generateButton.disabled = false;
-  }
-
-  // Save session after profile generation
-  await saveSession();
-}
-
-// --- HANDLERS ---
-
-function handleTagClick(event) {
-  const tagElement = event.target.closest('.tag-pill');
-  if (!tagElement) return;
-
-  const tagId = tagElement.dataset.tagId;
-
-  // Write state to window.session
-  if (window.session.selected_skills.includes(tagId)) {
-    window.session.selected_skills = window.session.selected_skills.filter(id => id !== tagId);
-  } else {
-    if (window.session.selected_skills.length < 5) {
-      window.session.selected_skills.push(tagId);
-    }
-  }
-  renderStep2();
-}
-
-// --- [FIXED FUNCTION] ---
-async function handleNext() {
-  // Read/Write state from window.session
-  console.log("handleNext called - currentStepIndex:", window.session.current_step_index, "contextSubStep:", window.session.context_sub_step, "phaseIntroSubStep:", window.session.phase_intro_sub_step);
-
-  if (window.session.current_step_index === -1) {
-    // --- Handle Name Capture ---
-    if (window.session.context_sub_step === 0) {
-        const nameInput = document.getElementById('student_name_input');
-        const studentName = nameInput?.value.trim() || '';
-        if (studentName.length < 2) {
-            alert("Please enter your first name.");
-            return;
-        }
-        window.session.student_name = studentName;
-    }
-    // --- [END NEW] ---
-
-    if (window.session.context_sub_step < 5) { // [FIX] This is now 5
-      window.session.context_sub_step++;
-      console.log("Moving to context substep:", window.session.context_sub_step);
-    } else {
-      window.session.current_step_index = 0;
-      window.session.context_sub_step = 0; // Reset this
-      window.session.phase_intro_sub_step = 0;
-      currentPhase = '1A';
-      console.log("Moving to Phase 1A intro");
-    }
-    renderStep();
-    await saveSession(); // Save progress
-    return;
-  }
-
-  // [THIS IS THE FIX]
-  // This block handles clicking "Continue" on an intro screen
-  if (window.session.current_step_index < questions.length && window.session.phase_intro_sub_step === 0) {
-    window.session.phase_intro_sub_step = -1; // Hide the intro screen
-    console.log("Starting questions from phase intro");
-    renderStep(); // Re-render to show the first question
-    await saveSession(); // Save progress
-    return; // Stop execution here
-  }
-  // [END FIX]
-
-  // [FIX] Updated boundary
-  if (window.session.current_step_index < questions.length) { // 0-22
-    const q = questions[window.session.current_step_index];
-    const textarea = document.getElementById(q.id);
-    const answer = textarea?.value.trim() || '';
-
-    if (!answer) {
-      alert("Please write your response first.");
-      return;
-    }
-
-    // Set current question for session
-    window.session.current_question = q.title;
-    // saveSession is called in handleStudentMessage
-
-    // Clear log if placeholder
-    if (conversationLog.children.length === 1 && conversationLog.children[0].textContent.includes('mentor will appear')) {
-      conversationLog.innerHTML = `<p class="text-sm text-gray-500 text-center">Conversation log cleared.</p>`;
-    }
-
-    appendToLog('user', answer);
-
-    if (expectingRefined) {
-      // This is a refined response after nudge
-      const needsMore = await checkThresholds(answer, q.title, q.id);
-      if (needsMore) {
-        // Still needs clarification
-        expectingRefined = true;
-        if (textarea) {
-          textarea.value = '';
-          textarea.focus();
-        }
-        await displayAINudge(answer, q.title, q.id);
-        return;
-      } else {
-        // Refined response is good; proceed
-        expectingRefined = false;
-        await proceedToNext(answer); // This is async and saves
-        return;
-      }
-    }
-
-    // Normal case: check if needs initial nudge
-    const needsMentor = await checkThresholds(answer, q.title, q.id);
-    if (needsMentor) {
-      expectingRefined = true;
-      if (textarea) {
-        textarea.value = '';
-        textarea.focus();
-      }
-      await displayAINudge(answer, q.title, q.id);
-      return;
-    }
-
-    // Initial response is good; proceed
-    await proceedToNext(answer); // This is async and saves
-    return;
-  } else if (window.session.current_step_index === questions.length) { // 23
-    if (window.session.selected_skills.length < 3) {
-      alert("Please select at least 3 skill tags before continuing.");
-      return;
-    }
-
-    const optionalText = document.getElementById('s2_optional_text').value.trim();
-    // Write state to window.session
-    window.session.answers[window.session.current_step_index] = {
-      tags: window.session.selected_skills,
-      optionalText: optionalText
-    };
-    window.session.phase_completed = "2"; // [NEW] Mark phase as complete
-
-    window.session.current_step_index++; // Move to 24
-    renderStep();
-    await saveSession(); // Save progress
-
-  } else { // 24
-    alert("Proceeding to Step 4: Academic Reality...");
-    console.log("Final User Data:", window.session.answers);
-  }
-}
-// --- [END FIXED FUNCTION] ---
-
-
-async function handleBack() {
-  // Read/Write state from window.session
-  console.log("handleBack called - currentStepIndex:", window.session.current_step_index, "contextSubStep:", window.session.context_sub_step, "phaseIntroSubStep:", window.session.phase_intro_sub_step);
-
-  // --- [NEW] Handle Back from Validation Screen ---
-  if (window.session.awaiting_validation) {
-    window.session.awaiting_validation = false;
-    // We are already on index 18, so just re-render
-    renderStep(); 
-    await saveSession();
-    return;
-  }
-  // --- [END NEW] ---
-
-  if (window.session.current_step_index === -1) {
-    if (window.session.context_sub_step > 0) {
-      window.session.context_sub_step--;
-    }
-    renderStep();
-    await saveSession(); // Save progress
-    return;
-  }
-
-  // Handle backing from phase intros
-  if (window.session.current_step_index < questions.length && window.session.phase_intro_sub_step === 0) {
-    if (window.session.current_step_index === (discoveryQuestions.length + definingQuestions.length)) {
-      // --- [NEW] From 1C intro (19) back to Validation Screen
-      window.session.current_step_index = discoveryQuestions.length + definingQuestions.length - 1; // 18
-      window.session.awaiting_validation = true; // <-- Re-open validation
-    } else if (window.session.current_step_index === discoveryQuestions.length) {
-      // From 1B intro (9) back to 1A's last question (8)
-      window.session.current_step_index = discoveryQuestions.length - 1; // 8
-    } else if (window.session.current_step_index === 0) {
-      // From 1A intro (0) back to context
-      window.session.current_step_index = -1;
-      window.session.context_sub_step = 5; // [FIX] Go to last context step (now 5)
-    }
-
-    window.session.phase_intro_sub_step = -1;
-    expectingRefined = false;
-    // [FIX] REMOVED conversationLog.innerHTML
-    renderStep();
-    await saveSession(); // Save progress
-    return;
-  }
-
-  // Handle backing from questions
-  if (window.session.current_step_index >= 0 && window.session.current_step_index < questions.length) {
-    
-    // [FIX] Improved back logic to show intro screens
-    if (window.session.current_step_index === (discoveryQuestions.length + definingQuestions.length)) {
-      // From first 1C question (19) back to 1C intro
-      window.session.phase_intro_sub_step = 0;
-    } else if (window.session.current_step_index === discoveryQuestions.length) {
-      // From first 1B question (9) back to 1B intro
-      window.session.phase_intro_sub_step = 0;
-    } else if (window.session.current_step_index === 0) {
-      // From first 1A question (0) back to 1A intro
-      window.session.phase_intro_sub_step = 0;
-    } else {
-      // Decrement to previous question
-      window.session.current_step_index--;
-    }
-    
-    // Handle edge case of backing from first question
-    if (window.session.current_step_index === 0 && window.session.phase_intro_sub_step === 0) {
-       // We are on 1A intro, back one more
-       window.session.current_step_index = -1;
-       window.session.context_sub_step = 5; // [FIX] Go to last context step (now 5)
-    }
-
-
-    expectingRefined = false;
-    // [FIX] REMOVED conversationLog.innerHTML
-    renderStep();
-    await saveSession(); // Save progress
-    return;
-  }
-
-  // Handle backing from Step 2 (skills)
-  if (window.session.current_step_index === questions.length) { // 23
-    window.session.current_step_index--; // Go to 22 (last 1C question)
-    window.session.phase_intro_sub_step = -1;
-    expectingRefined = false;
-    // [FIX] REMOVED conversationLog.innerHTML
-    renderStep();
-    await saveSession(); // Save progress
-    return;
-  }
-
-  // Handle backing from Step 3 (completion)
-  if (window.session.current_step_index > questions.length) { // 24
-    window.session.current_step_index = questions.length; // Go to 23 (Skills)
-    renderStep();
-    await saveSession(); // Save progress
-    return;
-  }
-}
-
-function updateNavigation() {
-  // Read state from window.session
-  if (window.session.current_step_index === -1 && window.session.context_sub_step === 0) {
-    backButton.disabled = true;
-  } else {
-    backButton.disabled = false;
+    appendMessage('mentor', "Sorry, I had trouble generating your profile. Let's move on for now.");
   }
   
-  // [NEW] Hide nav buttons during validation
-  if (window.session.awaiting_validation) {
-    nextButton.style.display = 'none';
-    backButton.style.display = 'none';
-  } else {
-    nextButton.style.display = 'inline-flex';
-    backButton.style.display = 'inline-flex';
-  }
+  await saveSession();
+  
+  appendMessage('mentor', "Next, we'll look at Step 4: Academic Reality...");
 }
 
-// Original callGeminiAPI (kept for summaries and rephrases)
+function handleTagClick(event) {
+  console.log("handleTagClick needs re-wire");
+}
+function toggleRefineEditor(show) {
+    console.log("Validation UI needs re-wire");
+}
+async function handleRegenerateSummary() {
+    console.log("Validation UI needs re-wire");
+}
+async function handleValidationApproval() {
+    console.log("Validation UI needs re-wire");
+}
+
+
+// --- Feedback Modal (This is fine) ---
+function injectFeedbackUI() {
+    const template = document.getElementById('template-feedback-modal');
+    if (!template) return;
+    
+    const modalHTML = template.content.cloneNode(true);
+    document.body.appendChild(modalHTML);
+
+    const modal = document.getElementById('feedback-modal-overlay');
+    const openBtn = document.getElementById('open-feedback-btn');
+    const closeBtn = document.getElementById('close-feedback-modal');
+    
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            if (modal) modal.style.display = "block";
+        });
+    }
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            if (modal) modal.style.display = "none";
+        });
+    }
+    
+    if (modal) {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+    }
+}
+
+// --- Original callGeminiAPI (This is fine) ---
 async function callGeminiAPI(systemInstruction, userQuery) {
   const payload = {
     contents: [{
@@ -1648,304 +1263,45 @@ async function callGeminiAPI(systemInstruction, userQuery) {
   return "Failed to get a response.";
 }
 
-
-// --- [NEW FUNCTIONS] for Validation Screen ---
-
-function toggleRefineEditor(show) {
-    const panel = document.getElementById('refine-panel');
-    const refineBtn = document.getElementById('validation-refine-btn');
-    const approveBtn = document.getElementById('validation-approve-btn');
-    if (panel) {
-        if (show) {
-            panel.classList.remove('hidden');
-            refineBtn.style.display = 'none';
-            approveBtn.style.display = 'none';
-        } else {
-            panel.classList.add('hidden');
-            refineBtn.style.display = 'inline-flex';
-            approveBtn.style.display = 'inline-flex';
-        }
-    }
-}
-
-async function handleRegenerateSummary() {
-    console.log("Regenerating summary...");
-    const btn = document.getElementById('regenerate-summary-btn');
-    btn.disabled = true;
-    btn.textContent = "Regenerating...";
-
-    // 1. Get key indexes
-    const who_idx = discoveryQuestions.length + 2; // q1b3_who (index 11)
-    const what_idx = discoveryQuestions.length;     // q1b1_what (index 9)
-    const why_idx = discoveryQuestions.length + 4;  // q1b5_why (index 13)
-
-    // 2. Read new values from textareas
-    const newWhat = document.getElementById('refine_what').value;
-    const newWho = document.getElementById('refine_who').value;
-    const newWhy = document.getElementById('refine_why').value;
-
-    // 3. Save new values back into the session
-    window.session.answers[what_idx] = newWhat;
-    window.session.answers[who_idx] = newWho;
-    window.session.answers[why_idx] = newWhy;
-
-    // 4. Re-run summary generation
-    const problemSummary = await generateFinalProblemSummary(...window.session.answers.slice(0, discoveryQuestions.length + definingQuestions.length));
-    window.session.current_summary = problemSummary;
-
-    // 5. Update UI
-    const summaryDisplay = document.getElementById('summary-display');
-    if (summaryDisplay) {
-        summaryDisplay.innerHTML = `<p class="text-gray-700 italic">${problemSummary}</p>`;
-    }
-
-    // 6. Reset buttons
-    btn.disabled = false;
-    btn.textContent = "Re-generate Summary with My Changes";
-    toggleRefineEditor(false); // Hide the panel and show approve/refine buttons
-    
-    await saveSession();
-}
-
-async function handleValidationApproval() {
-    console.log("Summary approved. Moving to Phase 1C.");
-    
-    window.session.awaiting_validation = false;
-    window.session.current_step_index++; // Move to 19
-    window.session.phase_intro_sub_step = 0; // Trigger 1C intro
-    window.session.phase_completed = "1B-Val"; // [NEW] Mark validation as complete
-    
-    renderStep();
-    await saveSession();
-}
-
-// --- [END NEW FUNCTIONS] ---
-
-// --- [NEW FEEDBACK MODAL FUNCTION] ---
-function injectFeedbackUI() {
-    // 1. Create the CSS for the modal
-    const modalCSS = `
-        #open-feedback-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #4F46E5; /* Indigo */
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            font-size: 28px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            cursor: pointer;
-            z-index: 999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #feedback-modal-overlay {
-            display: none; /* Hidden by default */
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.5);
-        }
-        #feedback-modal-content {
-            background-color: #fefefe;
-            margin: 10% auto;
-            padding: 24px;
-            border: 1px solid #888;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            font-family: system-ui, sans-serif;
-        }
-        #close-feedback-modal {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        #feedback-form-content label {
-            display: block;
-            font-weight: 600;
-            margin-top: 16px;
-            margin-bottom: 6px;
-        }
-        #feedback-form-content input[type="text"],
-        #feedback-form-content input[type="number"],
-        #feedback-form-content textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-sizing: border-box; /* Important */
-        }
-        #feedback-form-content textarea {
-            height: 100px;
-        }
-        #feedback-form-content .radio-group label {
-            font-weight: normal;
-            display: inline-block;
-            margin-right: 15px;
-        }
-        #feedback-form-content .rating-group label {
-            font-weight: normal;
-            display: inline-block;
-            margin: 0 5px;
-        }
-        #feedback-submit-btn {
-            background-color: #4F46E5;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            margin-top: 20px;
-        }
-    `;
-
-    // 2. Create the HTML for the button and modal
-    const modalHTML = `
-        <button id="open-feedback-btn" title="Give Feedback">💬</button>
-        
-        <div id="feedback-modal-overlay">
-            <div id="feedback-modal-content">
-                <span id="close-feedback-modal">&times;</span>
-                <h2 style="margin-top:0;">Give Feedback</h2>
-                <p style="font-size: 14px; color: #555;">Help us improve this tool for you!</p>
-                
-                <form id="feedback-form-content" action="https://formsubmit.co/23449e193b2a380598a2d6efb908e30b" method="POST">
-                    <input type="hidden" name="_subject" value="New Pathfinder App Feedback!">
-                    <input type="hidden" name="_autoresponse" value="Thank you for your valuable feedback! We've received it.">
-                    
-                    <label>1. How would you rate your experience today?</label>
-                    <div class="rating-group">
-                        <label><input type="radio" name="rating-experience" value="1 - Frustrating"> 1 (Frustrating)</label>
-                        <label><input type="radio" name="rating-experience" value="2 - Confusing"> 2</label>
-                        <label><input type="radio" name="rating-experience" value="3 - Okay"> 3 (Okay)</label>
-                        <label><input type="radio" name="rating-experience" value="4 - Helpful"> 4</label>
-                        <label><input type="radio" name="rating-experience" value="5 - Great!"> 5 (Great!)</label>
-                    </div>
-
-                    <label>2. On a scale of 0-10, how likely are you to recommend this to a friend?</label>
-                    <input type="number" name="rating-recommend" min="0" max="10" placeholder="0 (No way) to 10 (Definitely!)">
-
-                    <label>3. How easy was it to understand what to do next?</label>
-                    <div class="radio-group">
-                        <label><input type="radio" name="clarity" value="Very Easy"> Very Easy</label>
-                        <label><input type="radio" name="clarity" value="Okay"> Okay, I figured it out</label>
-                        <label><input type="radio" name="clarity" value="Confusing"> A little confusing</label>
-                    </div>
-
-                    <label>4. Did the mentor feel helpful and encouraging?</label>
-                    <div class="radio-group">
-                        <label><input type="radio" name="mentor-helpful" value="Yes, very!"> Yes, very!</label>
-                        <label><input type="radio" name="mentor-helpful" value="Sometimes"> Sometimes</label>
-                        <label><input type="radio" name="mentor-helpful" value="No, not really"> No, not really</label>
-                    </div>
-                    
-                    <label for="feedback-change">5. What is the one thing you would change or add?</label>
-                    <textarea id="feedback-change" name="change-one-thing" required></textarea>
-                    
-                    <label for="feedback-favorite">6. What was your favorite or most helpful part?</label>
-                    <textarea id="feedback-favorite" name="favorite-part" required></textarea>
-
-                    <button id="feedback-submit-btn" type="submit">Send Feedback</button>
-                </form>
-            </div>
-        </div>
-    `;
-
-    // 3. Inject CSS and HTML
-    document.head.insertAdjacentHTML('beforeend', `<style>${modalCSS}</style>`);
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-    // 4. Add Event Listeners
-    const modal = document.getElementById('feedback-modal-overlay');
-    
-    document.getElementById('open-feedback-btn').addEventListener('click', () => {
-        modal.style.display = "block";
-    });
-    
-    document.getElementById('close-feedback-modal').addEventListener('click', () => {
-        modal.style.display = "none";
-    });
-
-    modal.addEventListener('click', (event) => {
-        if (event.target === modal) { // Clicked on the dark background
-            modal.style.display = "none";
-        }
-    });
-}
-// --- [END NEW FEEDBACK FUNCTION] ---
-
-// --- APP INITIALIZATION ---
+// --- APP INITIALIZATION (MODIFIED) ---
 
 function initApp() {
-  console.log("Initializing app...");
-  container = document.getElementById('path-finder-container');
+  console.log("Initializing hybrid app...");
+  
+  // Find MAIN app elements
+  appContainer = document.getElementById('app-container');
+  appFooter = document.getElementById('app-footer');
   nextButton = document.getElementById('next-button');
   backButton = document.getElementById('back-button');
-  // [FIX] We target the PARENT element to take full control of the text
-  currentStepSpan = document.getElementById('current-step').parentElement; 
-  conversationLog = document.getElementById('conversation-log');
+  currentStepSpan = document.getElementById('current-step'); 
 
-  if (!container || !nextButton || !backButton || !currentStepSpan || !conversationLog) {
-    console.error("Failed to find required DOM elements!");
+  if (!appContainer || !nextButton || !backButton || !currentStepSpan) {
+    console.error("Failed to find required app DOM elements!");
+    appContainer.innerHTML = "<p class='text-red-500'>Error: Application failed to load. Please refresh.</p>";
     return;
   }
 
-  // --- [NEW] Inject the Feedback Button & Modal UI ---
+  // --- Inject the Feedback Button & Modal UI ---
   injectFeedbackUI();
-  // --- [END NEW] ---
+  // --- END ---
 
-  console.log("DOM elements found, attaching event listeners");
+  console.log("Attaching onboarding listeners");
   nextButton.addEventListener('click', handleNext);
   backButton.addEventListener('click', handleBack);
 
-  // initializeFirebase now loads all progress.
-  initializeFirebase().then(() => {
-    // --- [NEW] Welcome Back Message ---
-    const name = window.session.student_name;
-    const topic = window.session.previous_topic;
-    
-    // [FIX] This is the correct logic for a returning user.
-    // It checks if a name exists *before* rendering.
-    if (name) { 
-        conversationLog.innerHTML = ''; // Clear placeholder
-        
-        if (topic) {
-            // [NEW] Mentor Memory Thread
-            appendToLog('mentor', `Welcome back, ${name}! Last time, we started talking about ${topic}. Let's build on that thought.`);
-        } else {
-            // Fallback generic welcome (e.g., if they only entered their name)
-            appendToLog('mentor', `You are back ${name}, every single action helps to make your purpose clearer.`);
+  // [ROBUST FLOW]
+  initializeFirebase()
+    .catch((error) => {
+        console.error("A critical error occurred during Firebase init:", error);
+        // We ensure a fallback session exists even if Firebase fails
+        if (!window.session) {
+            window.session = { ...newSessionState };
         }
-        
-        // --- [CRITICAL BUG FIX] ---
-        // If the user is returning but is still in the intro (steps 0 or 1),
-        // skip them forward to the actual content (step 2).
-        if (window.session.current_step_index === -1 && window.session.context_sub_step < 2) {
-          window.session.context_sub_step = 2; // Skip "Enter Name" and "Welcome"
-          console.log("Returning user in intro. Skipping to step 2.");
-        }
-        // --- [END BUG FIX] ---
-
-    }
-    // --- [END NEW] ---
-    
-    console.log("Firebase initialized, rendering saved step.");
-    renderStep();
-  });
+    })
+    .finally(() => {
+        // This will ALWAYS run, even if Firebase fails
+        renderApp();
+    });
 }
 
 window.addEventListener('DOMContentLoaded', initApp);

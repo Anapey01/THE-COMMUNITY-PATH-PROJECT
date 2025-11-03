@@ -1,30 +1,78 @@
 /* ==================================== */
-/* == CSS STYLES (Style Block)         == */
-/* == Author: [Your Name], Date: 2025  == */
+/* == CSS STYLES (Style Block)       == */
 /* ==================================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
 /* === Base Styles === */
-body { 
-    font-family: 'Inter', sans-serif !important; 
-    background-color: #f7f9fb !important; 
+body {  
+    font-family: 'Inter', sans-serif !important;  
+    background-color: #f7f9fb !important;  
     margin: 0;
     padding: 0;
 }
 
-/* === Card Container === */
-.card { 
-    max-width: 500px !important; 
-    display: flex !important; 
-    flex-direction: column !important; 
+/* === Card Container (MODIFIED) === */
+.card {  
+    max-width: 500px !important;  
+    display: flex !important;  
+    flex-direction: column !important; /* This is key */
     justify-content: space-between !important;
-    height: auto !important;
+    /* Set a min/max-height for chat UI */
+    height: 90vh !important; 
+    min-height: 500px !important;
+    max-height: 800px !important;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
     border-radius: 1rem !important;
-    border: 1px solid #e0e7ff !important; /* Soft indigo border */
+    border: 1px solid #e0e7ff !important;
 }
 
-/* === Tag Pills: Clickable tags for filtering/interactions === */
+/* === Main App Container === */
+#app-container {
+    /* This will be 1fr in a grid or flex-grow in flex */
+    flex-grow: 1;
+    /* NEW: Ensure it can scroll if content overflows (like videos) */
+    overflow-y: auto;
+    padding: 1rem 0;
+    /* NEW: Force flex column for chat */
+    display: flex;
+    flex-direction: column;
+}
+
+/* === [NEW] Onboarding Section Styles === */
+.onboarding-section {
+    padding: 0.5rem;
+}
+
+.reflection-list {
+    background: #f1f5f9 !important;
+    border-radius: 0.5rem !important;
+    padding: 1rem !important;
+    margin: 0.5rem 0 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* === [NEW] Static Video Container (for onboarding) === */
+.video-container {
+    position: relative !important;
+    width: 100% !important;
+    padding-bottom: 56.25% !important; /* 16:9 Aspect Ratio */
+    height: 0 !important;
+    overflow: hidden !important;
+    border-radius: 0.75rem !important;
+}
+
+.video-container iframe {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0.75rem !important;
+    border: none !important;
+}
+
+
+/* === Tag Pills: (Still used for skills) === */
 .tag-pill {
     cursor: pointer !important;
     transition: all 0.15s ease !important;
@@ -36,208 +84,157 @@ body {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* === Path Finder Container: Main interactive area === */
-#path-finder-container {
-    min-height: 300px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-start !important;
-    align-items: stretch !important;
-    flex-grow: 1 !important;
-    padding: 1rem 0 !important;
-}
-
-/* === Conversation Log: Chat history area === */
+/* === Conversation Log (Used in Chat Mode) === */
 #conversation-log {
-    max-height: 250px !important;
+    flex-grow: 1 !important; /* This makes it fill the space */
     overflow-y: auto !important;
     border: 1px solid #e5e7eb !important;
     background-color: #f9fafb !important;
-    margin-top: 0 !important;
     padding: 0.75rem !important;
     border-radius: 0.75rem !important;
-    flex-shrink: 0 !important;
+    scroll-behavior: smooth !important; /* Nice scrolling */
     scrollbar-width: thin !important;
     scrollbar-color: #d1d5db #f3f4f6 !important;
 }
 
 /* Custom Scrollbar for Conversation Log */
-#conversation-log::-webkit-scrollbar {
-    width: 6px !important;
-}
-#conversation-log::-webkit-scrollbar-track {
-    background: #f3f4f6 !important;
-    border-radius: 3px !important;
-}
-#conversation-log::-webkit-scrollbar-thumb {
-    background: #d1d5db !important;
-    border-radius: 3px !important;
-}
-#conversation-log::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af !important;
-}
+#conversation-log::-webkit-scrollbar { width: 6px !important; }
+#conversation-log::-webkit-scrollbar-track { background: #f3f4f6 !important; border-radius: 3px !important; }
+#conversation-log::-webkit-scrollbar-thumb { background: #d1d5db !important; border-radius: 3px !important; }
+#conversation-log::-webkit-scrollbar-thumb:hover { background: #9ca3af !important; }
 
-/* === Bubbles: Chat message bubbles, targeted via JS classes (.user-bubble, .ai-bubble) === */
-#path-finder-container .user-bubble, 
-#conversation-log .user-bubble { 
+/* === Bubbles: Chat message bubbles === */
+#conversation-log .user-bubble {  
     background-color: #dbeafe !important;
     color: #1e40af !important;
     border-radius: 1rem !important;
     padding: 0.75rem 1rem !important;
     margin: 0.25rem 0 !important;
     max-width: 85% !important;
+    margin-left: auto !important;
+    margin-right: 0 !important;
 }
 
-#path-finder-container .ai-bubble, 
-#conversation-log .ai-bubble { 
-    background-color: #fef3c7 !important;
-    color: #92400e !important;
+#conversation-log .ai-bubble {  
+    background-color: #f3e8ff !important; 
+    color: #581c87 !important;
     border-radius: 1rem !important;
     padding: 0.75rem 1rem !important;
     margin: 0.25rem 0 !important;
     max-width: 85% !important;
+    margin-left: 0 !important;
+    margin-right: auto !important;
 }
 
-/* === Initial Context: Intro message at start of path finder === */
-#path-finder-container .initial-context {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
-    border-radius: 0.75rem !important;
-    padding: 1.5rem !important;
-    text-align: center !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-    border: 1px solid #bfdbfe !important;
-    margin-bottom: 0.5rem !important;
+/* === Chat Input (Used in Chat Mode) === */
+#chat-input-container {
+    /* Styles are mostly in index.html via Tailwind */
 }
 
-#path-finder-container .initial-context h2 {
-    font-size: 1.5rem !important;
-    font-weight: 700 !important;
-    color: #1e40af !important;
-    margin-bottom: 1rem !important;
-}
-
-#path-finder-container .initial-context p {
-    font-size: 1rem !important;
-    color: #374151 !important;
-    line-height: 1.5 !important;
-    margin-bottom: 0.75rem !important;
-}
-
-#path-finder-container .initial-context p:last-of-type {
-    font-weight: 600 !important;
-    color: #3730a3 !important;
-}
-
-/* === Video Containers: Responsive embed for YouTube/Vimeo, overrides inline styles === */
-#path-finder-container .video-container {
-    position: relative !important;
-    width: 100% !important;
-    padding-bottom: 56.25% !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    margin-top: 0.5rem !important;
-    border-radius: 0.75rem !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Note: Border-radius on iframe may not be respected in all browsers. For best results, wrap iframe in a div with overflow:hidden and border-radius. */
-#path-finder-container .video-container iframe {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    border-radius: 0.75rem !important;
-    border: none !important;
-}
-
-/* === Phase Intros & Questions: Section headers and prompts === */
-#path-finder-container .phase-intro {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
-    border-left: 4px solid #3b82f6 !important;
-    padding: 1rem !important;
-    border-radius: 0.75rem !important;
-    margin-bottom: 0.5rem !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-}
-
-#path-finder-container .question-section {
-    background: #f8fafc !important;
-    border-left: 3px solid #64748b !important;
-    border-radius: 0.5rem !important;
-    padding: 0.5rem !important;
-    margin-bottom: 0.5rem !important;
-}
-
-/* === Reflection List: Displays user or AI-generated reflection points === */
-#path-finder-container .reflection-list {
-    background: #f1f5f9 !important;
-    border-radius: 0.5rem !important;
-    padding: 1rem !important;
-    margin: 0.5rem 0 !important;
-    border: 1px solid #e2e8f0 !important;
-}
-
-#path-finder-container .reflection-list li {
-    margin-bottom: 0.25rem !important;
-    color: #475569 !important;
-}
-
-/* === Short Sections: Utility class for compact content blocks === */
-#path-finder-container .short-section {
-    margin-bottom: 0.5rem !important;
-    padding: 0.5rem !important;
-}
-
-/* === Profile Output: Summary of user profile generated at the end === */
-#profile-output {
-    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%) !important;
-    border: 2px solid #c084fc !important;
-    border-radius: 1rem !important;
-    padding: 1.5rem !important;
-    text-align: center !important;
-    margin: 1rem 0 !important;
-}
-
-#profile-output p {
-    margin: 0.5rem 0 !important;
-}
-
-/* === Spinner: Loading animation for async actions. Consider adding aria-busy for accessibility === */
-#path-finder-container .animate-spin {
-    animation: spin 1s linear infinite !important;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-/* === Buttons: Enhance hover effects for navigation and action buttons (#next-button, #back-button, #generate-profile-btn) === */
-#next-button, #back-button, #generate-profile-btn {
-    transition: all 0.15s ease-in-out !important;
-    border: none !important;
-    font-family: 'Inter', sans-serif !important;
-}
-
-#next-button:hover:not(:disabled), #generate-profile-btn:hover:not(:disabled) {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-}
-
-#back-button:hover:not(:disabled) {
-    transform: translateY(-1px) !important;
+#send-button svg {
+    flex-shrink: 0;
 }
 
 /* === Responsive: Styles for screens <= 640px (mobile devices) === */
 @media (max-width: 640px) {
-    .card { margin: 1rem !important; padding: 1rem !important; }
-    #path-finder-container { min-height: 250px !important; }
-    #path-finder-container .initial-context, #path-finder-container .phase-intro { padding: 1rem !important; }
+    .card { 
+        margin: 0 !important;
+        padding: 1rem !important; 
+        height: 100vh !important; /* Full height on mobile */
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+    }
     h1 { font-size: 1.75rem !important; }
 }
 
-#path-finder-container {
-  position: sticky;
-  top: 20px; /* Or whatever padding you want */
+
+/* ================================================== */
+/* == FEEDBACK MODAL (Extracted from main.js)      == */
+/* ================================================== */
+
+#open-feedback-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #4F46E5; /* Indigo */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    cursor: pointer;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#feedback-modal-overlay {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+}
+#feedback-modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 24px;
+    border: 1px solid #888;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    font-family: system-ui, sans-serif;
+}
+#close-feedback-modal {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+#feedback-form-content label {
+    display: block;
+    font-weight: 600;
+    margin-top: 16px;
+    margin-bottom: 6px;
+}
+#feedback-form-content input[type="text"],
+#feedback-form-content input[type="number"],
+#feedback-form-content textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box; /* Important */
+}
+#feedback-form-content textarea {
+    height: 100px;
+}
+#feedback-form-content .radio-group label {
+    font-weight: normal;
+    display: inline-block;
+    margin-right: 15px;
+}
+#feedback-form-content .rating-group label {
+    font-weight: normal;
+    display: inline-block;
+    margin: 0 5px;
+}
+#feedback-submit-btn {
+    background-color: #4F46E5;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 20px;
 }
