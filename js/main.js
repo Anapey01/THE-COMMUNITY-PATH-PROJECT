@@ -1078,6 +1078,7 @@ async function handleChatSubmit(event) {
                 // --- B.1. START VALIDATION ---
                 appendMessage('mentor', '', null, true); // Typing...
                 const summary = await generateFinalProblemSummary();
+                window.session.current_summary = summary; // Save summary
                 removeTypingIndicator();
                 
                 await new Promise(r => setTimeout(r, 1000));
@@ -1108,6 +1109,7 @@ async function handleChatSubmit(event) {
                 
                 await new Promise(r => setTimeout(r, 1000)); // Human delay
                 removeTypingIndicator();
+                // [MODIFIED] Pass user's message info so mentor can quote it
                 appendMessage(mentorName, transition, userMessageReplyInfo); 
                 
                 window.session.current_step_index++; // e.g., 5 -> 6
@@ -1120,14 +1122,14 @@ async function handleChatSubmit(event) {
     } else if (index === 150) {
         // --- 6.A. Handling "Approve" or "Refine" ---
         if (lowerInput.includes('refine')) {
-            appendMessage(mentorName, "Got it. Let's go back and redefine the core issue.");
+            appendMessage(mentorName, "No problem. Let's go back and redefine the core issue.");
             // 5 (start) + 9 (Phase 1A) = 14
             window.session.current_step_index = 14; // Start of Phase 1B
             await saveSession();
             setTimeout(askCurrentQuestion, 1500);
         } else {
             // Assume "approve"
-            appendMessage(mentorName, "Excellent. Let's move on.");
+            appendMessage(mentorName, "Excellent. Let's move on to Phase 1C and find your role in this.");
             // 5 (start) + 9 (1A) + 10 (1B) = 24
             window.session.current_step_index = 24; // Start of Phase 1C
             await saveSession();
@@ -1188,7 +1190,7 @@ async function handleChatSubmit(event) {
 
 /**
  * Handles a click anywhere on the conversation log.
- * Checks if the click was on a reply button.
+ * Checks if the click was on a reply button or a quoted message.
  */
 function handleLogClick(event) {
     // Check for reply button first
@@ -1239,10 +1241,10 @@ function scrollToMessage(quotedMessageElement) {
  * Sets the app state to "replying" and shows the preview UI.
  */
 function initReply(messageId, sender, text) {
-    currentReply = { messageId, sender, text };
+    currentReply = { messageId, sender, text: summarizeTextShort(text) }; // Use summary
     
     if (replyPreviewName) replyPreviewName.textContent = sender;
-    if (replyPreviewText) replyPreviewText.textContent = text;
+    if (replyPreviewText) replyPreviewText.textContent = summarizeTextShort(text);
     if (replyPreviewContainer) replyPreviewContainer.classList.remove('hidden');
     
     if (chatInput) chatInput.focus();
@@ -1315,7 +1317,6 @@ async function generateFinalProblemSummary() {
   // [MODIFIED] Pass the correct answers array
   const answers = window.session.answers;
   const dataPoints = answers.map((answer, index) => {
-    let category = '';
     // Note: The question index is now (index - 5)
     const questionIndex = index - 5;
     if (questionIndex < 0 || !answer) return null; // Skip welcome messages

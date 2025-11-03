@@ -17,10 +17,11 @@ body {
     display: flex !important;  
     flex-direction: column !important; /* This is key */
     justify-content: space-between !important;
-    /* Set a min/max-height for chat UI */
-    height: 90vh !important; 
+    /* [FIX] Set max-height, not fixed height */
+    max-height: 90vh !important; 
     min-height: 500px !important;
-    max-height: 800px !important;
+    /* [FIX] Allow height to be auto */
+    height: auto !important;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
     border-radius: 1rem !important;
     border: 1px solid #e0e7ff !important;
@@ -39,8 +40,13 @@ body {
 }
 
 /* === [NEW] Onboarding Section Styles === */
+/* [FIX] This centers the content in the onboarding steps, removing the "big space" */
 .onboarding-section {
     padding: 0.5rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .reflection-list {
@@ -222,7 +228,7 @@ body {
     .card { 
         margin: 0 !important;
         padding: 1rem !important; 
-        height: 100vh !important; /* Full height on mobile */
+        height: 100% !important; /* [FIX] Use 100% of parent */
         max-height: 100vh !important;
         border-radius: 0 !important;
     }
