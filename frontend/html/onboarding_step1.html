@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onboarding - The Community Path Project</title>
+    
+    <!-- Link to the new Onboarding CSS -->
+    <link rel="stylesheet" href="/static/css/onboarding.css">
+</head>
+<!-- 
+  We move the Jinja variables into data attributes.
+  This "hides" them from the JavaScript parser, preventing the
+  'Unexpected token {' SyntaxError when the file is viewed statically.
+-->
+<body data-slides="{{ slides_json | safe }}" data-dashboard-url="{{ dashboard_url }}">
+
+    <div class="onboarding-container">
+        <!-- Progress Bar -->
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        
+        <!-- Slides will be injected here by JavaScript -->
+        <div id="slides-container"></div>
+
+        <!-- Navigation Buttons -->
+        <div class="navigation-buttons">
+            <button id="back-btn" class="nav-button back-button">← Back</button>
+            <button id="next-btn" class="nav-button next-button">Next →</button>
+        </div>
+    </div>
+
+    <!-- 
+      JavaScript is now correctly moved to its own file.
+      We use 'defer' to make sure the script runs *after* the
+      HTML body is loaded, so it can find all the elements.
+    -->
+    <script src="/static/js/onboarding.js" defer></script>
+</body>
+</html>

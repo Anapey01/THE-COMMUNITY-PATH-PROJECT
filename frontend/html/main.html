@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Dashboard - The Community Path Project</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Global Stylesheet (for font) -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- Dashboard-Specific Stylesheet -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <!-- 
+      Main Application Card 
+      This uses the .card class from our dashboard.css
+    -->
+    <div class="card bg-white w-full max-w-lg shadow-xl rounded-lg overflow-hidden">
+        
+        <!-- Card Header -->
+        <header class="bg-gray-50 border-b border-gray-200 p-6">
+            <div class="flex justify-between items-center">
+                <a href="/" class="flex items-center space-x-2">
+                    <img src="/static/images/logo.png" alt="Logo" class="h-10 w-auto">
+                    <span class="font-semibold text-gray-700">My Dashboard</span>
+                </a>
+                <!-- We will add a real logout link later -->
+                <a href="/" class="text-sm font-medium text-gray-600 hover:text-indigo-700">
+                    Log Out
+                </a>
+            </div>
+        </header>
+
+        <!-- 
+          Flask Flash Messages
+          This block will display the "Welcome back, {username}!" message
+          This now serves as our main welcome.
+        -->
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="flash-messages p-4"> <!-- Reduced padding -->
+              {% for message in messages %}
+                <div class="flash-message bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg text-center font-medium" role="alert">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <!-- Add a fallback padding if no flash message -->
+            <div class="p-4"></div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- 
+          Main App Container
+          This is where the onboarding steps will load.
+        -->
+        <main id="app-container" class="p-8 pt-0"> <!-- Reduced top padding -->
+            
+            <!-- 
+              UPDATED: New, simplified, and centered welcome
+            -->
+            <div id="welcome-screen" class="text-center">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    Are you ready to find a community problem?
+                </h1>
+                
+                <p class="text-gray-600 mt-4 mb-6">
+                    Click each step in the roadmap to see the details.
+                </p>
+
+                <!-- 
+                  NEW: Interactive Roadmap
+                -->
+                <div id="roadmap-container" class="space-y-2 text-left">
+                    
+                    <!-- Step 1 -->
+                    <div class="roadmap-item">
+                        <button class="roadmap-toggle">
+                            <span class="font-semibold text-indigo-700">Step 1: Identify a Problem</span>
+                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <div class="roadmap-content">
+                            <p class="text-gray-700">Start by identifying a specific community problem you are passionate about solving.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2 -->
+                    <div class="roadmap-item">
+                        <button class="roadmap-toggle">
+                            <span class="font-semibold text-indigo-700">Step 2: Explore & Align</span>
+                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <div class="roadmap-content">
+                            <p class="text-gray-700">We link your problem to your personal curiosity, UN SDGs, and other global challenges & opportunities.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3 -->
+                    <div class="roadmap-item">
+                        <button class="roadmap-toggle">
+                            <span class="font-semibold text-indigo-700">Step 3: Check Academic Reality</span>
+                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <div class="roadmap-content">
+                            <p class="text-gray-700">Filter your options based on academic viability, program requirements, and your own strengths.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="roadmap-item">
+                        <button class="roadmap-toggle">
+                            <span class="font-semibold text-indigo-700">Step 4: Get Your Match</span>
+                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <div class="roadmap-content">
+                            <p class="text-gray-700">Receive a Tier 1 (Ideal) or Tier 2 (Complementary) academic path to start your journey.</p>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <a href="/onboarding_step1" class="form-button w-full text-center mt-8">
+                    Let's Go! (Start Step 1)
+                </a>
+            </div>
+            
+        </main>
+
+    </div>
+
+    <!-- 
+      NEW: Inline JavaScript for Interactive Roadmap
+    -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggles = document.querySelectorAll('.roadmap-toggle');
+            
+            toggles.forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    const item = toggle.parentElement;
+                    
+                    // Optional: Close other open items
+                    // document.querySelectorAll('.roadmap-item.open').forEach(openItem => {
+                    //    if (openItem !== item) {
+                    //        openItem.classList.remove('open');
+                    //    }
+                    // });
+                    
+                    // Toggle the clicked item
+                    item.classList.toggle('open');
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>

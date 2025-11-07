@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Community Path Project - Find Your Purpose</title>
+    
+    <!-- Tailwind CSS (Loaded via CDN for now, but you can point to your local build) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 
+      FONT LOADING UPDATED:
+      Removed the Google Fonts <link> tags.
+      We now link to our new local stylesheet.
+    -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- 
+      REMOVED: The inline <style> block has been
+      moved into /static/css/style.css
+    -->
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div>
+                <!-- 
+                  LOGO UPDATED: 
+                  Replaced text with your logo. 
+                  Please upload your logo to: /frontend/static/images/logo.png 
+                -->
+                <a href="/" class="flex items-center space-x-2">
+                    <img src="/static/images/logo.png" alt="Community Path Project Logo" class="h-12 w-auto">
+                    <!-- 
+                      Optional: Show text logo on small screens if logo is too complex
+                      <span class="text-2xl font-bold text-indigo-800">Community Path</span> 
+                    -->
+                </a>
+            </div>
+            <div class="flex items-center space-x-6">
+                <a href="/" class="text-gray-600 hover:text-indigo-800 font-medium">Home</a>
+                <a href="/about" class="text-gray-600 hover:text-indigo-800 font-medium">About</a>
+                <a href="/login" class="text-gray-600 hover:text-indigo-800 font-medium">Login</a>
+                <!-- Button color updated to match logo's dark blue -->
+                <a href="/signup" class="bg-indigo-700 text-white px-5 py-2 rounded-full font-medium hover:bg-indigo-800 transition duration-300">
+                    Get Started
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="bg-white py-20 md:py-32">
+            <div class="container mx-auto px-6 text-center">
+                <h1 class="text-4xl md:text-6xl font-bold text-gray-900 leading-tight">
+                    Don't Just Pick a Major.<br>Find Your Purpose.
+                </h1>
+                <!-- Tagline Added -->
+                <p class="mt-6 text-2xl md:text-3xl font-medium text-amber-600">
+                    Discover Purpose. Connect Passion. Choose Right.
+                </p>
+                <p class="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                    We help Ghanaian SHS graduates align personal curiosity with viable academic paths by linking your interests to real community problems.
+                </p>
+                <!-- Button color updated -->
+                <a href="/signup" class="mt-10 inline-block bg-indigo-700 text-white text-lg font-medium px-8 py-4 rounded-full hover:bg-indigo-800 transition duration-300">
+                    Start Your Journey (It's Free)
+                </a>
+            </div>
+        </section>
+
+        <!-- The Problem Section -->
+        <section class="py-20 md:py-28">
+            <div class="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
+                <div class="order-2 md:order-1">
+                    <!-- Color updated -->
+                    <span class="text-sm font-semibold text-indigo-700 uppercase">The Challenge</span>
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mt-3">
+                        Feeling Lost After SHS?
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-600">
+                        Every year, thousands of graduates choose university programs based on social pressure or guesswork. This leads to academic disengagement, costly program switching, and financial strain.
+                    </p>
+                    <p class="mt-4 text-lg text-gray-600">
+                        This is especially hard in rural and peri-urban areas with limited access to structured career counseling.
+                    </p>
+                </div>
+                <div class="order-1 md:order-2">
+                    <!-- 
+                      PLACEHOLDER UPDATED: 
+                      Text is now more specific to your audience.
+                    -->
+                    <img src="https://placehold.co/600x400/E8EAF6/3F51B5?text=WASSCE+Graduates+Planning+Future" alt="SHS graduate thinking about the future" class="rounded-lg shadow-xl w-full">
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <!-- Background color updated -->
+        <section class="bg-indigo-50 py-20 md:py-28">
+            <div class="container mx-auto px-6">
+                <div class="text-center max-w-3xl mx-auto">
+                    <!-- Color updated -->
+                    <span class="text-sm font-semibold text-indigo-700 uppercase">Our Framework</span>
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mt-3">
+                        A Clear Path to a Viable Future
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-600">
+                        Our logic is simple: <span class="font-semibold">Purpose + Reality = A Viable Match.</span> We guide you through a 4-step process to find a path that is both meaningful and practical.
+                    </p>
+                </div>
+
+                <!-- 4-Step Cards -->
+                <div class="mt-16 grid md:grid-cols-4 gap-8">
+                    <!-- Step 1 -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg border border-gray-100">
+                        <!-- Step number color updated to logo's accent gold -->
+                        <span class="text-3xl font-bold text-amber-500">01</span>
+                        <h3 class="text-xl font-semibold text-gray-900 mt-4">Identify a Problem</h3>
+                        <p class="mt-2 text-gray-600">
+                            Start by identifying a specific community problem you are passionate about solving.
+                        </p>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg border border-gray-100">
+                        <!-- Step number color updated -->
+                        <span class="text-3xl font-bold text-amber-500">02</span>
+                        <h3 class="text-xl font-semibold text-gray-900 mt-4">Explore & Align</h3>
+                        <!-- TEXT UPDATED: Added "global challenges" as requested -->
+                        <p class="mt-2 text-gray-600">
+                            We link your problem to your personal curiosity, UN SDGs, and other global challenges & opportunities.
+                        </p>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg border border-gray-100">
+                        <!-- Step number color updated -->
+                        <span class="text-3xl font-bold text-amber-500">03</span>
+                        <h3 class="text-xl font-semibold text-gray-900 mt-4">Check Academic Reality</h3>
+                        <p class="mt-2 text-gray-600">
+                            Filter your options based on academic viability, program requirements, and your own strengths.
+                        </p>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg border border-gray-100">
+                        <!-- Step number color updated -->
+                        <span class="text-3xl font-bold text-amber-500">04</span>
+                        <h3 class="text-xl font-semibold text-gray-900 mt-4">Get Your Match</h3>
+                        <p class="mt-2 text-gray-600">
+                            Receive a Tier 1 (Ideal) or Tier 2 (Complementary) academic path to start your journey.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 
+          NEW SECTION: SDG / Global Goals
+          Added this new visual section as requested.
+        -->
+        <section class="bg-white py-20 md:py-28">
+            <div class="container mx-auto px-6">
+                <div class="text-center max-w-3xl mx-auto">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">
+                        Connect to a Bigger Picture
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-600">
+                        Your local challenge is part of a global conversation. We help you see the links between your community, the UN Sustainable Development Goals, and worldwide opportunities for innovation.
+                    </p>
+                </div>
+                <!-- Visual Grid -->
+                <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <!-- Example Icon 1: Quality Education -->
+                    <div class="flex flex-col items-center text-center p-4">
+                        <img src="https://placehold.co/120x120/C5192D/FFFFFF?text=SDG+4" alt="SDG 4: Quality Education" class="rounded-lg shadow-md">
+                        <h4 class="mt-4 font-semibold text-lg text-gray-800">Quality Education</h4>
+                    </div>
+                    <!-- Example Icon 2: Decent Work -->
+                    <div class="flex flex-col items-center text-center p-4">
+                        <img src="https://placehold.co/120x120/A21942/FFFFFF?text=SDG+8" alt="SDG 8: Decent Work" class="rounded-lg shadow-md">
+                        <h4 class="mt-4 font-semibold text-lg text-gray-800">Decent Work</h4>
+                    </div>
+                    <!-- Example Icon 3: Sustainable Cities -->
+                    <div class="flex flex-col items-center text-center p-4">
+                        <img src="https://placehold.co/120x120/FD9D24/FFFFFF?text=SDG+11" alt="SDG 11: Sustainable Cities" class="rounded-lg shadow-md">
+                        <h4 class="mt-4 font-semibold text-lg text-gray-800">Sustainable Cities</h4>
+                    </div>
+                    <!-- Example Icon 4: Climate Action -->
+                    <div class="flex flex-col items-center text-center p-4">
+                        <img src="https://placehold.co/120x120/3F7E44/FFFFFF?text=SDG+13" alt="SDG 13: Climate Action" class="rounded-lg shadow-md">
+                        <h4 class="mt-4 font-semibold text-lg text-gray-800">Climate Action</h4>
+                    </div>
+                </div>
+                <p class="text-center mt-12 text-gray-600">
+                    ...and 13 other goals, from <span class="font-medium">No Poverty</span> to <span class="font-medium">Industry & Innovation</span>.
+                </p>
+            </div>
+        </section>
+        
+        <!-- 
+          NEW SECTION: Global Challenges & Opportunities
+          Added this new section as requested, using a 2-column list format.
+        -->
+        <section class="bg-indigo-50 py-20 md:py-28">
+            <div class="container mx-auto px-6">
+                <div class="text-center max-w-3xl mx-auto">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">
+                        Tackle Global Challenges, Seize Global Opportunities
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-600">
+                        The problems in your community are also gateways to global fields of study and innovation. We help you connect your path to these key areas of impact.
+                    </p> <!-- FIX: Changed </s_p> to </p> -->
+                </div>
+                
+                <!-- 2-Column Layout for Lists -->
+                <div class="mt-16 max-w-5xl mx-auto grid md:grid-cols-2 gap-12">
+                    
+                    <!-- Column 1: Global Challenges -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg border border-gray-100">
+                        <h3 class="text-2xl font-semibold text-indigo-800 mb-6">
+                            Focus on Global Challenges
+                        </h3>
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Urbanization</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Education</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Infrastructure</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Healthcare</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Climate Change</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Governance</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Job Creation (Youth)</span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Column 2: Global Opportunities -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg border border-gray-100">
+                        <h3 class="text-2xl font-semibold text-green-700 mb-6">
+                            Seize Global Opportunities
+                        </h3>
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Agriculture</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Natural Resources</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Arts, Culture & Design</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Tourism</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Women Empowerment</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Regional Integration</span>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                <span class="text-lg text-gray-700">Wildlife Conservation</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- 
+          NEW SECTION: Testimonials 
+        -->
+        <section class="bg-white py-20 md:py-28">
+            <div class="container mx-auto px-6">
+                <div class="text-center max-w-3xl mx-auto">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900">
+                        Testimonials
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-600">
+                        Hear from students who found clarity and direction through our program.
+                    </p>
+                </div>
+
+                <!-- Example testimonials -->
+                <div class="mt-12 grid md:grid-cols-3 gap-8">
+                    <div class="bg-gray-50 p-6 rounded-lg shadow">
+                        <p class="text-gray-700">"This platform helped me choose a program that truly fits my passion."</p>
+                        <p class="mt-4 font-semibold text-indigo-800">— Ama, SHS Graduate</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg shadow">
+                        <p class="text-gray-700">"I discovered opportunities I never knew existed."</p>
+                        <p class="mt-4 font-semibold text-indigo-800">— Kofi, SHS Graduate</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg shadow">
+                        <p class="text-gray-700">"The recommendations were practical and achievable."</p>
+                        <p class="mt-4 font-semibold text-indigo-800">— Efua, SHS Graduate</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t mt-20">
+            <div class="container mx-auto px-6 py-8 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-600">&copy; 2025 The Community Path Project. All rights reserved.</p>
+                <div class="flex space-x-4 mt-4 md:mt-0">
+                    <a href="/about" class="text-gray-600 hover:text-indigo-800">About</a>
+                    <a href="/privacy" class="text-gray-600 hover:text-indigo-800">Privacy</a>
+                    <a href="/contact" class="text-gray-600 hover:text-indigo-800">Contact</a>
+                </div>
+            </div>
+        </footer>
+
+    </main>
+</body>
+</html>

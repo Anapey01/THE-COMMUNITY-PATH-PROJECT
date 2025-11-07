@@ -1,0 +1,69 @@
+/* This file styles the signup.html and login.html pages */
+
+/* Form Container */
+.form-container {
+  max-width: 450px;
+  margin: 2rem auto; /* Reduced top margin */
+  padding: 2.5rem;   /* More padding */
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+}
+
+/* Form Labels */
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151; /* text-gray-700 */
+}
+
+/* Form Inputs */
+.form-input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: #111827; /* text-gray-900 */
+  background-color: #f9fafb; /* bg-gray-50 */
+  border: 1px solid #d1d5db; /* border-gray-300 */
+  border-radius: 0.5rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4338ca; /* border-indigo-700 */
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(199, 210, 254, 0.5); /* indigo focus ring */
+}
+
+/* Form Button (Matches logo colors) */
+.form-button {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #4338ca; /* bg-indigo-700 */
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.form-button:hover {
+  background-color: #3730a3; /* bg-indigo-800 */
+}
+
+/* Flash Message Styling (for errors) */
+.flash-message {
+  width: 100%;
+  padding: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  /* Colors are set by Tailwind classes in the HTML */
+}

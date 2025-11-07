@@ -1,0 +1,77 @@
+# This script will overwrite 'structure.txt' with the correct, clean project framework.
+
+Write-Host "Updating '.\structure.txt' with the correct project framework..."
+
+# Define the ideal project structure as a multi-line string (Here-String)
+$structureContent = @"
+THE COMMUNITY PATH PROJECT
+.
+├── requirements.txt
+├── .gitignore
+│
+├── backend/
+│   ├── app.py
+│   ├── db.sqlite
+│   ├── models.py
+│   │
+│   ├── logic/
+│   │   ├── __init__.py
+│   │   ├── match_engine.py
+│   │   ├── sdg_mapper.py
+│   │   └── validation.py
+│   │
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── auth_routes.py
+│   │   ├── user_routes.py
+│   │   └── match_routes.py
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       ├── helpers.py
+│       └── db_init.py
+│
+└── frontend/
+    │
+    ├── html/
+    │   ├── index.html
+    │   ├── about.html
+    │   ├── signup.html
+    │   ├── login.html
+    │   ├── main.html
+    │   ├── onboarding_step1.html
+    │   ├── onboarding_step2.html
+    │   ├── onboarding_step3.html
+    │   ├── onboarding_step4.html
+    │   └── match_result.html
+    │
+    └── static/
+        ├── css/
+        │   ├── style.css
+        │   ├── forms.css
+        │   └── dashboard.css
+        │
+        ├── js/
+        │   ├── main.js
+        │   ├── onboarding.js
+        │   ├── match.js
+        │   ├── auth.js
+        │   └── api.js
+        │
+        ├── images/
+        │   ├── logo.png
+        │   ├── banner.jpg
+        │   └── sdg-icons/
+        │
+        └── assets/
+            ├── videos/
+            │   └── intro_sdgs.mp4
+            └── fonts/
+                └── inter/
+"@
+
+# Write this content to structure.txt, overwriting whatever is there.
+# Use -Force to make sure it writes, even if the file is read-only.
+Set-Content -Path ".\structure.txt" -Value $structureContent -Encoding UTF8 -Force
+
+Write-Host ".\structure.txt has been updated successfully."

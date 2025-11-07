@@ -1,0 +1,65 @@
+/* This is our GLOBAL stylesheet. 
+  It correctly loads the LOCAL Inter font as we planned.
+*/
+
+/* --- Inter Font: Regular (400) --- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  /* Path points to our assets folder inside static */
+  src: url('/static/assets/fonts/inter/Inter-Regular.woff2') format('woff2');
+}
+
+/* --- Inter Font: Medium (500) --- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/static/assets/fonts/inter/Inter-Medium.woff2') format('woff2');
+}
+
+/* --- Inter Font: SemiBold (600) --- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/static/assets/fonts/inter/Inter-SemiBold.woff2') format('woff2');
+}
+
+/* --- Inter Font: Bold (700) --- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/assets/fonts/inter/Inter-Bold.woff2') format('woff2');
+}
+
+
+/* --- Global Styles --- */
+body {
+  /* This applies the local font you just loaded */
+  font-family: 'Inter', sans-serif;
+  background-color: #f7f9fb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* --- Global Styles --- */
+body {
+  /* This applies the 'Inter' font from Google Fonts */
+  font-family: 'Inter', sans-serif;
+  background-color: #f7f9fb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
