@@ -46,6 +46,58 @@ System outputs a Tier 1 (Ideal) or Tier 2 (Complementary) pathway.
 Result – Purpose-Driven Learning Path:
 Student sees recommended programs and related opportunities
 
+.
+
+🚨 High Priority (Core Foundation – must come first)
+
+app.py (Flask backend setup)
+
+Serves all your HTML pages correctly (home, about, signup, login, main).
+
+Connects frontend → backend (routes working).
+
+Handles signup/login sessions.
+
+Confirms your folder structure works properly.
+
+Frontend structure connection (HTML & JS basics)
+
+index.html = home
+
+login.html & signup.html = forms that send data to backend
+
+main.html = shows dashboard after login
+
+These must load from Flask without “404 Not Found”.
+
+Database + models (models.py)
+
+Store users, problems, and paths — the minimum for your logic to function.
+
+Start simple: SQLite + SQLAlchemy.
+
+⚙️ Medium Priority (comes next)
+
+Core logic engine (logic/)
+
+Implements your matching hypothesis: problem → program → match.
+
+Can use mock data first.
+
+Frontend enhancement (style.css + JS)
+
+Improve user experience and visual consistency.
+
+🌍 Low Priority (after MVP testing)
+
+User feedback & analytics integration
+
+Collect data on how users interact with each step.
+
+Video assets, animations, branding
+
+To make it more appealing after the logic works
+
 community-path/
 │
 ├── README.md
