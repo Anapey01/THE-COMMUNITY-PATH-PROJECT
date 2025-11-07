@@ -120,39 +120,38 @@ community-path/
 │
 ├── frontend/
 │   ├── html/
-│   │   ├── index.html          # Homepage (introduction & CTA)
-│   │   ├── about.html          # About the project + mission
-│   │   ├── signup.html         # New user registration
-│   │   ├── login.html          # Returning user login
-│   │   ├── main.html           # Dashboard after login
-│   │   ├── onboarding_step1.html  # Step 1: Identify community problem
-│   │   ├── onboarding_step2.html  # Step 2: Align with SDG & personal curiosity
-│   │   ├── onboarding_step3.html  # Step 3: Check academic reality
-│   │   ├── onboarding_step4.html  # Step 4: Generate final match
-│   │   └── match_result.html      # Displays Tier 1 / Tier 2 match results
+│   │   ├── index.html              # Homepage (introduction & CTA)
+│   │   ├── about.html              # About the project + mission
+│   │   ├── signup.html             # New user registration
+│   │   ├── login.html              # Returning user login
+│   │   ├── main.html               # Dashboard after login
+│   │   ├── onboarding_step1.html   # Step 1: Identify community problem
+│   │   ├── onboarding_step2.html   # Step 2: Align with SDG & personal curiosity
+│   │   ├── onboarding_step3.html   # Step 3: Check academic reality
+│   │   ├── onboarding_step4.html   # Step 4: Generate final match
+│   │   └── match_result.html       # Displays Tier 1 / Tier 2 match results
 │   │
-│   ├── static/
-│   │   ├── css/
-│   │   │   ├── style.css       # Global styles
-│   │   │   ├── forms.css       # Sign up, login, and onboarding styling
-│   │   │   └── dashboard.css   # Dashboard and match result styling
-│   │   ├── js/
-│   │   │   ├── main.js         # Main logic (navigation + global UI)
-│   │   │   ├── onboarding.js   # Handles multi-step onboarding flow
-│   │   │   ├── match.js        # Fetches and displays match results
-│   │   │   ├── auth.js         # Handles sign in / sign up
-│   │   │   └── api.js          # Communicates with Flask backend
-│   │   └── images/
-│   │       ├── logo.png
-│   │       ├── sdg-icons/      # SDG icons (1–17)
-│   │       └── banner.jpg
-│   │
-│   └── assets/
-│       ├── videos/
-│       │   └── intro_sdgs.mp4  # SDG awareness video
-│       └── fonts/
-│           └── inter/           # Web fonts
+│   └── static/
+│       ├── css/
+│       │   ├── style.css           # Global styles
+│       │   ├── forms.css           # Sign up, login, and onboarding styling
+│       │   └── dashboard.css       # Dashboard and match result styling
+│       ├── js/
+│       │   ├── main.js             # Main logic (navigation + global UI)
+│       │   ├── onboarding.js       # Handles multi-step onboarding flow
+│       │   ├── match.js            # Fetches and displays match results
+│       │   ├── auth.js             # Handles sign in / sign up
+│       │   └── api.js              # Communicates with Flask backend
+│       ├── images/
+│       │   ├── logo.png
+│       │   ├── sdg-icons/          # SDG icons (1–17)
+│       │   └── banner.jpg
+│       └── assets/                 # ✅ Corrected location for assets
+│           ├── videos/
+│           │   └── intro_sdgs.mp4  # SDG awareness video
+│           └── fonts/
+│               └── inter/          # Web fonts
 │
-├── .env.example                 # Example environment variables
-├── requirements.txt             # Python dependencies (Flask, SQLAlchemy, etc.)
-└── .gitignore                   # Ignore pycache, db files, envs
+├── .env.example                    # Example environment variables
+├── requirements.txt                # Python dependencies (Flask, SQLAlchemy, etc.)
+└── .gitignore                      # Ignore pycache, db files, envs
