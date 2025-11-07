@@ -180,14 +180,21 @@
         // Make session global for all modules to access
         window.session = null;
 
+        // --- CORE ---
         import './js/app.utils.js';
-        import './js/app.feedback.js';
-        import './js/app.chat.js';
-        import './js/app.profile.js';
         import './js/app.firebase.js';
+
+        // --- FEATURES (Feedback is standalone) ---
+        import './js/app.feedback.js';
         
-        // This file runs last and kicks off the application
+        // --- UI & LOGIC ---
+        // (app.profile.js is not needed yet)
+        import './js/app.chat.js';
         import './js/app.init.js';
+        
+        // --- START THE APP ---
+        import './js/main.js';
     </script>
 </body>
 </html>
+
