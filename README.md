@@ -16,6 +16,17 @@ directly leading to higher satisfaction.Logic: Purpose (Step 1/2 Frameworks) + R
 🎯 Mission
 To bridge the gap between personal curiosity and academic choices by linking every student’s interest to a community problem and an SDG-based learning path.
 
+## Stack
+- Frontend: HTML, CSS, JS
+- Backend: Python (Flask)
+- Database: SQLite (initial)
+- Deployment: Local testing, then web host
+
+## Running
+- `cd backend`
+- `python app.py`
+- Visit `http://127.0.0.1:5000`
+
 ⚙️ System Logic
 Purpose (Steps 1–2) + Reality (Steps 3–4) → Viable Match + Support
 
