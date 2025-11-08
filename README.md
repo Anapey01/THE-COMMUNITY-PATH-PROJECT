@@ -103,20 +103,23 @@ community-path/
 ├── README.md
 │
 ├── backend/
-│   ├── app.py                  # Flask backend app (Python server)
-│   ├── db.sqlite               # SQLite database (stores user data & matches)
-│   ├── models.py               # Database models (Users, Responses, Matches)
+│   ├── app.py                      # Flask backend app (Python server)
+│   ├── db.sqlite                   # SQLite database (stores user data, matches, chat, results)
+│   ├── models.py                   # Database models (Users, Mentors, Results, Matches, ChatMessages)
 │   ├── logic/
-│   │   ├── match_engine.py     # Core logic: generates Tier 1 & Tier 2 matches
-│   │   ├── sdg_mapper.py       # Maps community problems to SDGs
-│   │   └── validation.py       # Input validation and consistency checks
+│   │   ├── match_engine.py         # Core logic: generates Tier 1 & Tier 2 matches
+│   │   ├── sdg_mapper.py           # Maps community problems to SDGs
+│   │   └── validation.py           # Input validation and consistency checks
 │   ├── routes/
-│   │   ├── auth_routes.py      # Handles sign up / login / logout
-│   │   ├── user_routes.py      # Manages onboarding steps
-│   │   └── match_routes.py     # Fetches & displays match results
+│   │   ├── auth_routes.py          # Handles sign up / login / logout
+│   │   ├── user_routes.py          # Manages user profile and result input
+│   │   ├── chat_routes.py          # Mentor-student chat endpoints
+│   │   ├── results_routes.py       # Input and retrieval of student results
+│   │   ├── match_routes.py         # Fetches & displays program/course matches
+│   │   └── university_routes.py    # University mapping APIs
 │   └── utils/
-│       ├── helpers.py          # Utility functions (e.g., data formatting)
-│       └── db_init.py          # Sets up initial database schema
+│       ├── helpers.py              # Utility functions (e.g., data formatting, validation helpers)
+│       └── db_init.py              # Sets up initial database schema
 │
 ├── frontend/
 │   ├── html/
@@ -129,24 +132,27 @@ community-path/
 │   │   ├── onboarding_step2.html   # Step 2: Align with SDG & personal curiosity
 │   │   ├── onboarding_step3.html   # Step 3: Check academic reality
 │   │   ├── onboarding_step4.html   # Step 4: Generate final match
-│   │   └── match_result.html       # Displays Tier 1 / Tier 2 match results
+│   │   ├── match_result.html       # Displays Tier 1 / Tier 2 match results
+│   │   └── chat.html               # Mentor-student chat interface
 │   │
 │   └── static/
 │       ├── css/
 │       │   ├── style.css           # Global styles
 │       │   ├── forms.css           # Sign up, login, and onboarding styling
-│       │   └── dashboard.css       # Dashboard and match result styling
+│       │   ├── dashboard.css       # Dashboard and match result styling
+│       │   └── chat.css            # Mentor-student chat styling
 │       ├── js/
 │       │   ├── main.js             # Main logic (navigation + global UI)
 │       │   ├── onboarding.js       # Handles multi-step onboarding flow
 │       │   ├── match.js            # Fetches and displays match results
 │       │   ├── auth.js             # Handles sign in / sign up
-│       │   └── api.js              # Communicates with Flask backend
+│       │   ├── api.js              # Communicates with Flask backend
+│       │   └── chat.js             # Handles mentor-student chat functionality
 │       ├── images/
 │       │   ├── logo.png
-│       │   ├── sdg-icons/          # SDG icons (1–17)
-│       │   └── banner.jpg
-│       └── assets/                 # ✅ Corrected location for assets
+│       │   ├── banner.jpg
+│       │   └── sdg-icons/          # SDG icons (1–17)
+│       └── assets/
 │           ├── videos/
 │           │   └── intro_sdgs.mp4  # SDG awareness video
 │           └── fonts/
@@ -155,3 +161,4 @@ community-path/
 ├── .env.example                    # Example environment variables
 ├── requirements.txt                # Python dependencies (Flask, SQLAlchemy, etc.)
 └── .gitignore                      # Ignore pycache, db files, envs
+
