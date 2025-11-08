@@ -1,4 +1,4 @@
-# backend/app.py
+import os
 from flask import Flask, render_template, redirect, url_for
 from models import db
 from routes.auth_routes import auth_bp
@@ -7,17 +7,17 @@ from routes.chat_routes import chat_bp
 from routes.results_routes import results_bp
 from routes.match_routes import match_bp
 from routes.university_routes import university_bp
-import os
 
 def create_app():
-    # --- Absolute paths for frontend ---
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-    FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
+    # --- Compute absolute paths relative to project root ---
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    FRONTEND_HTML = os.path.join(PROJECT_ROOT, "frontend", "html")
+    FRONTEND_STATIC = os.path.join(PROJECT_ROOT, "frontend", "static")
 
     app = Flask(
         __name__,
-        template_folder=os.path.join(FRONTEND_DIR, "html"),   # Absolute path
-        static_folder=os.path.join(FRONTEND_DIR, "static")    # Absolute path
+        template_folder=FRONTEND_HTML,
+        static_folder=FRONTEND_STATIC
     )
 
     # --- Configuration ---
@@ -36,20 +36,17 @@ def create_app():
     app.register_blueprint(match_bp, url_prefix="/api/match")
     app.register_blueprint(university_bp, url_prefix="/api/universities")
 
-    # --- Home route (redirect to login) ---
+    # --- Home route redirects to login ---
     @app.route("/")
     def home():
-        return redirect(url_for("render_page", page="login"))  # Redirect to login.html
+        return redirect(url_for("render_page", page="login"))
 
-    # --- Dynamic route for all HTML pages ---
+    # --- Dynamic route for all other HTML pages ---
     @app.route("/<page>")
     def render_page(page):
         if not page.endswith(".html"):
             page += ".html"
-
-        template_folder = app.template_folder or ""
-        template_path = os.path.join(os.fspath(template_folder), page)
-
+        template_path = os.path.join(FRONTEND_HTML, page)
         if os.path.exists(template_path):
             return render_template(page)
         else:
