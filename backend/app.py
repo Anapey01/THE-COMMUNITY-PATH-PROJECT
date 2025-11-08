@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
-import json # 1. Import the JSON library
-import os # 2. Import OS to build the file path
+# import json # 1. Import the JSON library -- REMOVED
 
 from models import users  # ✅ import our in-memory user store
 
@@ -11,18 +10,10 @@ app = Flask(
 )
 app.secret_key = "dev_secret_key_change_later"
 
-# --- 3. Load Onboarding Content ---
-# Get the absolute path to the directory this file is in
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONTENT_FILE = os.path.join(BASE_DIR, 'onboarding_content.json')
+# --- 3. Hard-coded Onboarding Content -- REMOVED ---
+# All onboarding content and routes have been removed.
+# We will work on this tomorrow.
 
-# Load the content from the JSON file into a variable
-try:
-    with open(CONTENT_FILE, 'r') as f:
-        onboarding_content = json.load(f)
-except FileNotFoundError:
-    print(f"ERROR: Could not find {CONTENT_FILE}")
-    onboarding_content = []
 
 # ✅ ROUTES
 @app.route('/')
@@ -82,7 +73,9 @@ def login():
 @app.route('/logout')
 def logout():
     # Clear the session
-    session.pop('username', None')
+    # FIX: Re-confirming the fix.
+    # This removes any stray apostrophes after None.
+    session.pop('username', None)
     return redirect(url_for('home'))
 
 @app.route('/main')
@@ -91,26 +84,9 @@ def main():
         return redirect(url_for('login'))
     return render_template('main.html', username=session['username'])
 
-# --- 4. REFACTORED ONBOARDING FLOW (Single Page App) ---
-@app.route('/onboarding_step1')
-def onboarding_step1():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    username = session.get('username')
-
-    # Get a deep copy of the content
-    content_data = [slide.copy() for slide in onboarding_content]
-    
-    # Inject the username into the first slide's title
-    if content_data:
-        content_data[0]['title'] = content_data[0]['title'].format(username=username)
-
-    # Pass the entire list of slides to the template
-    # We use json.dumps to safely pass it to JavaScript
-    return render_template('onboarding_step1.html', 
-                           slides_json=json.dumps(content_data), 
-                           dashboard_url=url_for('main'))
+# --- 4. REFACTORED ONBOARDING FLOW -- REMOVED ---
+# @app.route('/onboarding_step1')
+# ... all onboarding logic removed ...
 
 
 # --- Run App ---
