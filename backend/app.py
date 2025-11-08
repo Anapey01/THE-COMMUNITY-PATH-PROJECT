@@ -1,94 +1,58 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-# import json # 1. Import the JSON library -- REMOVED
+# backend/app.py
+from flask import Flask, render_template
+from models import db
+from routes.auth_routes import auth_bp
+from routes.user_routes import user_bp
+from routes.chat_routes import chat_bp
+from routes.results_routes import results_bp
+from routes.match_routes import match_bp
+from routes.university_routes import university_bp
+import os
 
-from models import users  # ✅ import our in-memory user store
+def create_app():
+    app = Flask(
+        __name__,
+        template_folder="../frontend/html",   # HTML files
+        static_folder="../frontend/static"    # CSS/JS/images
+    )
 
-app = Flask(
-    __name__,
-    template_folder="../frontend/html",
-    static_folder="../frontend/static"
-)
-app.secret_key = "dev_secret_key_change_later"
+    # --- Configuration ---
+    app.config['SECRET_KEY'] = "dev_secret_key_change_later"
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# --- 3. Hard-coded Onboarding Content -- REMOVED ---
-# All onboarding content and routes have been removed.
-# We will work on this tomorrow.
+    # --- Initialize database ---
+    db.init_app(app)
 
+    # --- Register API Blueprints ---
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(user_bp, url_prefix="/api/user")
+    app.register_blueprint(chat_bp, url_prefix="/api/chat")
+    app.register_blueprint(results_bp, url_prefix="/api/results")
+    app.register_blueprint(match_bp, url_prefix="/api/match")
+    app.register_blueprint(university_bp, url_prefix="/api/universities")
 
-# ✅ ROUTES
-@app.route('/')
-def home():
-    return render_template('index.html')
+    # --- Home route ---
+    @app.route("/")
+    def home():
+        return render_template("index.html")  # Main page
 
-@app.route('/about')
-def about():
-    return render_template('about.html')
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-
-        # --- Validation ---
-        if not username or not password:
-            flash("Please fill in all fields.")
-            return redirect(url_for('signup'))
-
-        if username in users:
-            flash("Username already exists. Please log in.")
-            return redirect(url_for('login'))
-
-        # --- Store user ---
-        # NOTE: This is great for dev, but remember to hash passwords later!
-        users[username] = password
-        flash("Signup successful! You can now log in.")
-        print(f"🟢 New signup: {username}")
-
-        return redirect(url_for('login'))
-
-    return render_template('signup.html')
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-
-        # --- Check user ---
-        if username in users and users[username] == password:
-            # Store username in session
-            session['username'] = username
-            flash(f"Welcome back, {username}!")
-            print(f"🟠 Login successful: {username}")
-            return redirect(url_for('main'))
+    # --- Dynamic route for all other HTML pages ---
+    @app.route("/<page>")
+    def render_page(page):
+        if not page.endswith(".html"):
+            page += ".html"
+        # Ensure template_folder is a concrete string (fallback to empty string if None)
+        template_folder = app.template_folder or ""
+        template_path = os.path.join(os.fspath(template_folder), page)
+        if os.path.exists(template_path):
+            return render_template(page)
         else:
-            flash("Invalid username or password.")
-            print(f"🔴 Failed login attempt: {username}")
-            return redirect(url_for('login'))
+            return f"❌ Page {page} not found", 404
 
-    return render_template('login.html')
+    return app
 
-@app.route('/logout')
-def logout():
-    # Clear the session
-    # FIX: Re-confirming the fix.
-    # This removes any stray apostrophes after None.
-    session.pop('username', None)
-    return redirect(url_for('home'))
-
-@app.route('/main')
-def main():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    return render_template('main.html', username=session['username'])
-
-# --- 4. REFACTORED ONBOARDING FLOW -- REMOVED ---
-# @app.route('/onboarding_step1')
-# ... all onboarding logic removed ...
-
-
-# --- Run App ---
-if __name__ == '__main__':
+# Run the app if executed directly
+if __name__ == "__main__":
+    app = create_app()
     app.run(debug=True)
