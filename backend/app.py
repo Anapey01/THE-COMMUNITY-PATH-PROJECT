@@ -1,5 +1,5 @@
 # backend/app.py
-from flask import Flask
+from flask import Flask, render_template
 from models import db
 from routes.auth_routes import auth_bp
 from routes.user_routes import user_bp
@@ -7,9 +7,15 @@ from routes.chat_routes import chat_bp
 from routes.results_routes import results_bp
 from routes.match_routes import match_bp
 from routes.university_routes import university_bp
+import os
 
 def create_app():
-    app = Flask(__name__)
+    # Initialize Flask app with correct paths to frontend files
+    app = Flask(
+        __name__,
+        template_folder="../frontend/html",   # HTML files
+        static_folder="../frontend/static"    # CSS/JS/images
+    )
 
     # --- Configuration ---
     app.config['SECRET_KEY'] = "dev_secret_key_change_later"
@@ -27,48 +33,27 @@ def create_app():
     app.register_blueprint(match_bp, url_prefix="/api/match")
     app.register_blueprint(university_bp, url_prefix="/api/universities")
 
+    # --- Home route ---
+    @app.route("/")
+    def home():
+        return render_template("index.html")  # Main page
+
+    # --- Dynamic route for all other HTML pages ---
+    @app.route("/<page>")
+    def render_page(page):
+        if not page.endswith(".html"):
+            page += ".html"
+        # Ensure template_folder is a string
+        template_folder = app.template_folder or ""
+        template_path = os.path.join(os.fspath(template_folder), page)
+        if os.path.exists(template_path):
+            return render_template(page)
+        else:
+            return f"❌ Page {page} not found", 404
+
     return app
 
-# --- Only for local testing ---
+# Run the app if executed directly (for local testing)
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)
-// frontend/js/auth.js
-
-const backendURL = "https://the-community-path-project.onrender.com"; // Render backend
-
-document.addEventListener("DOMContentLoaded", () => {
-    const loginForm = document.getElementById("loginForm");
-
-    if (loginForm) {
-        loginForm.addEventListener("submit", async (e) => {
-            e.preventDefault();
-
-            const email = document.getElementById("email").value;
-            const password = document.getElementById("password").value;
-
-            try {
-                const response = await fetch(`${backendURL}/api/auth/login`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ email, password }),
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert("Login successful!");
-                    // Redirect or save token if using JWT
-                    window.location.href = "index.html";
-                } else {
-                    alert(data.message || "Login failed!");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Something went wrong. Check console.");
-            }
-        });
-    }
-});
