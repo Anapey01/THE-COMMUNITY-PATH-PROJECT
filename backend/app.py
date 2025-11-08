@@ -1,5 +1,5 @@
 # backend/app.py
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect, url_for
 from models import db
 from routes.auth_routes import auth_bp
 from routes.user_routes import user_bp
@@ -10,10 +10,14 @@ from routes.university_routes import university_bp
 import os
 
 def create_app():
+    # --- Absolute paths for frontend ---
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
+
     app = Flask(
         __name__,
-        template_folder="../frontend/html",   # HTML files
-        static_folder="../frontend/static"    # CSS/JS/images
+        template_folder=os.path.join(FRONTEND_DIR, "html"),   # Absolute path
+        static_folder=os.path.join(FRONTEND_DIR, "static")    # Absolute path
     )
 
     # --- Configuration ---
@@ -32,19 +36,20 @@ def create_app():
     app.register_blueprint(match_bp, url_prefix="/api/match")
     app.register_blueprint(university_bp, url_prefix="/api/universities")
 
-    # --- Home route ---
+    # --- Home route (redirect to login) ---
     @app.route("/")
     def home():
-        return render_template("index.html")  # Main page
+        return redirect(url_for("render_page", page="login"))  # Redirect to login.html
 
-    # --- Dynamic route for all other HTML pages ---
+    # --- Dynamic route for all HTML pages ---
     @app.route("/<page>")
     def render_page(page):
         if not page.endswith(".html"):
             page += ".html"
-        # Ensure template_folder is a concrete string (fallback to empty string if None)
+
         template_folder = app.template_folder or ""
         template_path = os.path.join(os.fspath(template_folder), page)
+
         if os.path.exists(template_path):
             return render_template(page)
         else:
@@ -52,7 +57,8 @@ def create_app():
 
     return app
 
-# Run the app if executed directly
+
+# --- Local run ---
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)
