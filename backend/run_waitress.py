@@ -1,15 +1,13 @@
-# backend/run_waitress.py
-import sys
+# run_waitress.py
 import os
 from waitress import serve
+from app import create_app
 
-# Ensure the backend directory is in sys.path
-sys.path.insert(0, os.path.dirname(__file__))
-
-from app import create_app  # Import from backend/app.py
-
+# Create your Flask app
 app = create_app()
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    serve(app, host="0.0.0.0", port=port)
+# Get port from environment variable (Render sets this automatically)
+port = int(os.environ.get("PORT", 5000))
+
+# Serve with Waitress
+serve(app, host="0.0.0.0", port=port)
