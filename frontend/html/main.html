@@ -41,20 +41,6 @@
           This block will display the "Welcome back, {username}!" message
           This now serves as our main welcome.
         -->
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <div class="flash-messages p-4"> <!-- Reduced padding -->
-              {% for message in messages %}
-                <div class="flash-message bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg text-center font-medium" role="alert">
-                  {{ message }}
-                </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <!-- Add a fallback padding if no flash message -->
-            <div class="p-4"></div>
-          {% endif %}
-        {% endwith %}
 
         <!-- 
           Main App Container
