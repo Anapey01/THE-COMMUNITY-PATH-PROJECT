@@ -6,7 +6,32 @@ Helping Ghanaian SHS graduates align their purpose with viable academic paths th
 ## Project Core
 
 **Problem statement**
-Every year, thousands of SHS graduates in Ghana make life-defining university choices based on social pressure, leading to academic disengagement, program switching, and financial strain. This is compounded by limited access to structured career counseling, particularly in rural and peri-urban areas. Graduates are often misaligned with their aspirations and disconnected from solving real community challenges.
+Many students in Ghana enter tertiary education without a clear understanding of the challenges facing their communities or how their chosen programmes align with solving those problems. As a result, a large proportion of SHS graduates select university courses based on social pressure, prestige, or limited information rather than genuine interest or relevance to local development needs. This creates a persistent disconnect between students’ academic pathways and the practical issues within their home communities, affecting sectors such as health, agriculture, technology, and local governance.
+
+This misalignment often leads to low academic motivation, programme switching, and uncertainty about career direction. For many young people, the decision to pursue tertiary education is treated as an obligation rather than a purpose-driven step—students “go to school because they have to,” not because they understand the societal impact of their choices. Students from rural and peri-urban areas experience this gap even more sharply due to limited access to structured career guidance and problem-based exploration before entering university.
+
+Former Minister of State for Tertiary Education, Professor Kwesi Yankah, has warned that such misalignment contributes to disengagement and broader challenges within tertiary systems. Combined with national data showing limited tertiary participation rates, this highlights the urgent need for tools and frameworks that help students identify community problems, align them with suitable academic programmes, and build purpose-driven career pathways rooted in impact and relevance.
+
+**Vision Statement**
+
+To empower every Ghanaian student to make informed, purpose-driven academic and career decisions by connecting their personal interests with real community challenges—creating a generation of graduates equipped to build solutions that transform their communities and contribute meaningfully to national development.
+
+**Mission Statement**
+
+Our mission is to guide Ghanaian students toward purpose-driven career and academic choices by helping them identify real community problems and match them with relevant university programmes. We aim to create a future where students choose fields of study not by pressure or guesswork, but with clarity, confidence, and a deep understanding of the impact they want to create.
+
+**Solution Statement**
+
+This project provides a structured, user-friendly platform that guides students to identify community problems they care about, match them with relevant academic programmes, and access curated career insights. By combining problem-based thinking, programme guidance, and mentorship pathways, the platform bridges the gap between what students study and the impact they aspire to create, helping them build career trajectories grounded in clarity, purpose, and real-world relevance.
+
+**APA-Style References**
+
+1. UNESCO Institute for Statistics. (2023). Ghana: Education and literacy data. UNESCO.
+https://uis.unesco.org/
+
+2. Ministry of Education – Ghana. (2022). Education Sector Performance Report. Ministry of Education, Accra.
+
+3. Yankah, K. (2019). Public address on tertiary education challenges in Ghana (as reported by the Ministry of Education and national news outlets). Ministry of Education, Accra.
 
 **Core hypothesis and logic**
 By forcing students first to identify a specific community problem (Step 1 Framework) and then filtering their program options based on academic viability (Step 3), we can generate a Tier 1 (Ideal) or Tier 2 (Complementary) Match that results in a more relevant and actionable educational path, directly leading to higher satisfaction.
