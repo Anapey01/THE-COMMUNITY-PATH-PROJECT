@@ -5,33 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log In - The Community Path Project</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Global Stylesheet -->
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/forms.css">
 </head>
 <body class="bg-gray-50">
 
-    <!-- Header -->
     <header class="py-8">
         <div class="container mx-auto px-6 text-center">
-            <a href="/" class="inline-block">
-                <img src="/static/images/logo.png" alt="Community Path Project Logo" class="h-16 w-auto mx-auto">
+            <a href="./index.html" class="inline-block"> 
+                <img src="../static/images/logo.png" alt="Community Path Project Logo" class="h-16 w-auto mx-auto">
             </a>
         </div>
     </header>
 
-    <!-- Login Form -->
     <main class="form-container mx-auto">
         <h1 class="text-3xl font-bold text-gray-900 text-center">Welcome Back</h1>
         <p class="text-gray-600 text-center mt-3">Log in to continue your journey.</p>
 
-        <!-- Error / Success messages -->
         <div id="messageContainer" class="mt-6"></div>
 
-        <!-- Login Form -->
         <form id="loginForm" class="mt-8 space-y-6">
             <div>
                 <label for="username" class="form-label">Username</label>
@@ -50,17 +44,14 @@
             </div>
         </form>
 
-        <!-- Signup link -->
         <p class="mt-8 text-center text-gray-600">
             Don't have an account? 
-            <a href="/signup.html" class="font-medium text-indigo-700 hover:text-indigo-800">Sign Up</a>
+            <a href="./signup.html" class="font-medium text-indigo-700 hover:text-indigo-800">Sign Up</a>
         </p>
     </main>
 
-    <!-- JS -->
-    <script src="/js/auth.js"></script>
+    <script src="../static/js/auth.js"></script>
 
-    <!-- Footer -->
     <footer class="py-8 mt-16">
         <div class="container mx-auto px-6 text-center text-sm text-gray-600">
             © 2025 The Community Path Project. All rights reserved.

@@ -5,39 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - The Community Path Project</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Global Stylesheet (for font) -->
-    <link rel="stylesheet" href="/static/css/style.css">
-    
-    <!-- Form-Specific Stylesheet -->
-    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/forms.css">
 </head>
 <body class="bg-gray-50">
 
-    <!-- Simple Header with Logo -->
     <header class="py-8">
         <div class="container mx-auto px-6 text-center">
-            <a href="/" class="inline-block">
-                <img src="/static/images/logo.png" alt="Community Path Project Logo" class="h-16 w-auto mx-auto">
+            <a href="./index.html" class="inline-block"> 
+                <img src="../static/images/logo.png" alt="Community Path Project Logo" class="h-16 w-auto mx-auto">
             </a>
         </div>
     </header>
 
-    <!-- Signup Form Container -->
     <main class="form-container mx-auto">
         <h1 class="text-3xl font-bold text-gray-900 text-center">Create Your Account</h1>
         <p class="text-gray-600 text-center mt-3">
             Start your journey to find a meaningful path.
         </p>
 
-        <!-- 
-          Flask Flash Messages
-          This block will display any error messages from Flask (e.g., "Username already exists")
-        -->
+        <div id="messageContainer" class="mt-6"></div>
 
-        <!-- Signup Form -->
         <form id="signupForm" class="mt-8 space-y-6">
             <div>
                 <label for="username" class="form-label">Username</label>
@@ -56,21 +46,21 @@
             </div>
         </form>
 
-        <!-- Link to Login -->
         <p class="mt-8 text-center text-gray-600">
             Already have an account?
-            <a href="/login" class="font-medium text-indigo-700 hover:text-indigo-800">
+            <a href="./login.html" class="font-medium text-indigo-700 hover:text-indigo-800">
                 Log In
             </a>
         </p>
     </main>
 
-    <!-- Simple Footer -->
     <footer class="py-8 mt-16">
         <div class="container mx-auto px-6 text-center text-sm text-gray-600">
             © 2025 The Community Path Project. All rights reserved.
         </div>
     </footer>
+    
+    <script src="../static/js/auth.js"></script>
 
 </body>
 </html>

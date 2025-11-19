@@ -1,7 +1,14 @@
 # backend/community_path/api/urls.py
+
 from django.urls import path
 
-# Initialize the urlpatterns list. This is the minimum required fix.
+# backend/community_path/urls.py
+from django.contrib import admin
+from django.urls import path, include
+
 urlpatterns = [
-    # All your API endpoint paths (like 'auth/signup/') will go here later.
+    path('admin/', admin.site.urls),
+    
+    # Correctly includes the API app's URLs
+    path('api/', include('community_path.api.urls')),
 ]
