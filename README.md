@@ -1,155 +1,378 @@
 
-# **The Community Path Project**
+# **Community Path Project — API & Client Documentation**
 
-Helping Ghanaian SHS graduates align their purpose with viable academic paths through a structured, data-driven framework. **One student at a time.**
+> **A purpose-driven guidance platform that connects community problems to academic pathways using SDGs, GCGO, and grade-based programme matching.**
 
-## Project Core
+![Python](https://img.shields.io/badge/Python-3.9+-blue)
+![Django REST Framework](https://img.shields.io/badge/DRF-API-red)
+![React](https://img.shields.io/badge/React-Vite-61DAFB)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
-**Problem statement**
-Many students in Ghana enter tertiary education without a clear understanding of the challenges facing their communities or how their chosen programmes align with solving those problems. As a result, a large proportion of SHS graduates select university courses based on social pressure, prestige, or limited information rather than genuine interest or relevance to local development needs. This creates a persistent disconnect between students’ academic pathways and the practical issues within their home communities, affecting sectors such as health, agriculture, technology, and local governance.
+A decoupled platform built with **Django REST Framework** and **React + Vite** that helps Ghanaian SHS graduates align purpose, community problems, and academic programmes through structured, data-driven matching.
 
-This misalignment often leads to low academic motivation, programme switching, and uncertainty about career direction. For many young people, the decision to pursue tertiary education is treated as an obligation rather than a purpose-driven step—students “go to school because they have to,” not because they understand the societal impact of their choices. Students from rural and peri-urban areas experience this gap even more sharply due to limited access to structured career guidance and problem-based exploration before entering university.
+---
 
-Former Minister of State for Tertiary Education, Professor Kwesi Yankah, has warned that such misalignment contributes to disengagement and broader challenges within tertiary systems. Combined with national data showing limited tertiary participation rates, this highlights the urgent need for tools and frameworks that help students identify community problems, align them with suitable academic programmes, and build purpose-driven career pathways rooted in impact and relevance.
+# 📋 Table of Contents
 
-**Vision Statement**
+* [Overview](#overview)
+* [Quick Start](#quick-start)
+* [Problem Statement](#problem-statement)
+* [Solution](#solution)
+* [Features](#features)
+* [System Architecture](#system-architecture)
+* [Tech Stack](#tech-stack)
+* [Prerequisites](#prerequisites)
+* [Installation](#installation)
+* [Environment Variables](#environment-variables)
+* [Project Structure](#project-structure)
+* [API Endpoints](#api-endpoints)
+* [Authentication](#authentication)
+* [Database Models](#database-models)
+* [Security Features](#security-features)
+* [Known Limitations](#known-limitations)
+* [Roadmap](#roadmap)
+* [Contributing](#contributing)
+* [License](#license)
+* [Author](#author)
 
-To empower every Ghanaian student to make informed, purpose-driven academic and career decisions by connecting their personal interests with real community challenges—creating a generation of graduates equipped to build solutions that transform their communities and contribute meaningfully to national development.
+---
 
-**Mission Statement**
+# 🎯 Overview
 
-Our mission is to guide Ghanaian students toward purpose-driven career and academic choices by helping them identify real community problems and match them with relevant university programmes. We aim to create a future where students choose fields of study not by pressure or guesswork, but with clarity, confidence, and a deep understanding of the impact they want to create.
+The **Community Path Project** is an educational guidance platform that helps students identify community problems, map them to **SDGs** and **GCGO (Global Challenges & Global Opportunities)**, and match them with relevant tertiary programmes using grade-based filters and programme cutoffs.
 
-**Solution Statement**
+The platform includes:
 
-This project provides a structured, user-friendly platform that guides students to identify community problems they care about, match them with relevant academic programmes, and access curated career insights. By combining problem-based thinking, programme guidance, and mentorship pathways, the platform bridges the gap between what students study and the impact they aspire to create, helping them build career trajectories grounded in clarity, purpose, and real-world relevance.
+* A secure authentication system
+* A multi-step onboarding wizard
+* An intelligent matching engine
+* A React-based user dashboard
 
-**APA-Style References**
+---
 
-1. UNESCO Institute for Statistics. (2023). Ghana: Education and literacy data. UNESCO.
-https://uis.unesco.org/
+# ⚡ Quick Start
 
-2. Ministry of Education – Ghana. (2022). Education Sector Performance Report. Ministry of Education, Accra.
+```bash
+# Clone repository
+git clone <repository-url>
+cd community-path
 
-3. Yankah, K. (2019). Public address on tertiary education challenges in Ghana (as reported by the Ministry of Education and national news outlets). Ministry of Education, Accra.
+# Backend
+cd backend
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
 
-**Core hypothesis and logic**
-By forcing students first to identify a specific community problem (Step 1 Framework) and then filtering their program options based on academic viability (Step 3), we can generate a Tier 1 (Ideal) or Tier 2 (Complementary) Match that results in a more relevant and actionable educational path, directly leading to higher satisfaction.
+# Frontend
+cd ../frontend
+npm install
+npm run dev
+```
 
-**Logic:** Purpose (Step 1/2 Frameworks) + Reality (Step 3/4) = **Viable Match + Support.**
+Backend → [http://127.0.0.1:8000/api](http://127.0.0.1:8000/api)
+Frontend → [http://localhost:5173](http://localhost:5173)
 
-🎯 **Mission**
-To bridge the gap between personal curiosity and academic choices by linking every student’s interest to a community problem and an SDG-based learning path.
+---
 
------
+# ⚠️ Problem Statement
 
-## Technology Stack (Decoupled Architecture)
+Many Ghanaian SHS graduates enter tertiary institutions without clarity on the problems their communities face or how academic programmes align with solving them. This leads to mismatched course selection, low academic motivation, and weak alignment between education and local development needs.
 
-| Component | Technology | Description |
-| :--- | :--- | :--- |
-| **Backend** | **Python (Django, DRF)** | Handles complex matching logic, data storage, and serves **JSON API** endpoints. |
-| **Database** | **SQLite3** (initial) | Django's default, ready for easy transition to PostgreSQL in production. |
-| **Frontend** | **HTML, CSS, JavaScript** | Purely static, decoupled files that consume the Django API. |
-| **Deployment** | **Split Hosting** | Backend hosted on a service like Heroku/Railway; Frontend hosted statically on Netlify/Vercel. |
+Rural and peri-urban students experience this gap more severely due to limited access to structured career guidance systems that link **personal purpose**, **local challenges**, and **academic pathways**.
 
-## Running the Project Locally
+---
 
-The project is now a decoupled API (backend) and a static frontend.
+# 💡 Solution
 
-### 1\. Backend API Server (Django)
+The Community Path Project provides a structured platform that:
 
-This starts the Django Rest Framework API.
+* Helps students identify meaningful community problems
+* Automatically maps them to **SDGs** & **GCGO global frameworks**
+* Filters academic programmes using WASSCE grades and aggregates
+* Generates purpose-driven matches
+* Provides insights to help students make informed pathway decisions
 
-1.  Navigate to the backend directory:
-    ```bash
-    cd backend
-    ```
-2.  Ensure dependencies are installed and migrations are applied:
-    ```bash
-    pip install -r ../requirements.txt
-    python manage.py makemigrations api # Only needed if models change
-    python manage.py migrate
-    ```
-3.  Start the Django development server:
-    ```bash
-    python manage.py runserver
-    ```
-    The API will be running at `http://127.0.0.1:8000/api/`.
+**Core Logic**
+Purpose (Problem Identification) + Reality (Grades) = **Viable Academic Match + Clear Pathway**
 
-### 2\. Frontend Access (Static)
+---
 
-The frontend must be served statically for local testing.
+# ✨ Features
 
-  * Open the project root in your browser (e.g., `file:///path/to/project/frontend/html/index.html`).
-  * **Alternatively,** use a small static server utility (like Node's `http-server`) to test CORS functionality correctly.
+### 🔐 Authentication & Onboarding
 
------
+* Token-based authentication (Knox)
+* Multi-step onboarding wizard (React)
+* Real-time grade validation
 
-## 🚨 High Priority (Current Focus)
+### 🎯 Matching Engine
 
-The current priority is establishing robust API communication now that the structural groundwork is complete.
+* **Tier 1:** Direct programme–problem alignment
+* **Tier 2:** Broader interdisciplinary matches
+* SDG & GCGO automatic tagging
+* Aggregate-based programme filtering
 
-  * **User Authentication (Auth Tokens):** Implement **serializers** and **views** to handle user signup/login and return an **Authentication Token** upon success.
-  * **Core Data Endpoints:** Implement API views for submitting student data for Steps 1-3 (Onboarding).
-  * **Frontend API Integration:** Update `frontend/static/js/auth.js` to send/receive JSON data and handle token storage on successful login.
+### 💻 React SPA Interface
 
------
+* Fully responsive
+* Real-time feedback
+* Saves user matches
+* Optimized for low-bandwidth regions
 
-## 🧩 System Logic & Core Flow
+### 🛠 Developer-Friendly Backend
 
-This defines the student journey within the application.
+* DRF-based modular API
+* Clean serializer + view architecture
+* Logic separated into dedicated matching engine folder
 
-  * **System Logic:** Purpose (Steps 1–2) + Reality (Steps 3–4) → **Viable Match + Support**
-  * **Step 1 – Identify Community Problem:** Students describe a real challenge in their local area.
-  * **Step 2 – SDG & Curiosity Match:** The platform maps the problem to relevant SDGs.
-  * **Step 3 – Academic Reality Check:** The student’s grades and interests filter viable programs.
-  * **Step 4 – Tiered Match Generation:** System outputs a Tier 1 (Ideal) or Tier 2 (Complementary) pathway.
-  * **Result – Purpose-Driven Learning Path:** Student sees recommended programs and related opportunities.
+---
 
------
-
-## 📁 Project Directory Structure (Final Django Stack)
-
-This diagram reflects the result of the migration and purge process.
+# 🧩 System Architecture
 
 ```
-.
-├── README.md
-├── requirements.txt
-├── .gitignore
-│
-├── backend/
-│   ├── manage.py                   # Django management script
-│   ├── db.sqlite3                  # SQLite database (new location)
-│   └── community_path/             # Django Project Configuration
-│       ├── settings.py             # Global settings (CORS, DRF, Apps)
-│       ├── urls.py                 # Main URL dispatcher (routes to /api/)
-│       ├── wsgi.py
-│       │
-│       └── api/                    # Django Application (Your Core Logic)
-│           ├── models.py           # Converted Django ORM models
-│           ├── serializers.py      # DRF serializers (JSON <-> Python objects)
-│           ├── views.py            # API endpoint logic (replaces Flask routes)
-│           ├── urls.py             # App-level URL routes (e.g., auth/signup, match/tier1)
-│           ├── logic/              # Core matching functions (match_engine.py, sdg_mapper.py, validation.py)
-│           └── migrations/         # Database migration files
-│
-└── frontend/                       # Static Content Host (Vercel/Netlify)
-    ├── html/                       # All static HTML pages
-    │   ├── index.html
-    │   ├── signup.html
-    │   ├── main.html
-    │   └── match_result.html
-    │   └── ... (other HTML files)
-    │
-    └── static/                     # CSS, JS, Images, Assets
-        ├── css/
-        │   ├── style.css
-        │   └── ... (forms.css, dashboard.css)
-        ├── js/
-        │   ├── auth.js             # Handles token-based login/signup
-        │   └── onboarding.js       # Handles multi-step form data submission
-        └── images/
-            └── ... (logo.png, sdg-icons/)
++-------------------+         +------------------------------+
+| React Frontend    | <-----> | Django REST API (DRF)        |
+| Vite SPA          |         | Authentication, Matching      |
++-------------------+         +------------------------------+
+                                      |
+                                      |
+                              +-----------------+
+                              | PostgreSQL/SQLite|
+                              +-----------------+
+```
+
+---
+
+# 🛠 Tech Stack
+
+**Backend:** Python, Django, DRF, Knox, SQLite/PostgreSQL
+**Frontend:** React, Vite, TailwindCSS, Axios
+**Security:** Argon2, CORS, DRF throttling
+**DevOps:** Gunicorn, Whitenoise, Nginx (Production)
+
+---
+
+# 📦 Prerequisites
+
+* Python 3.9+
+* Node.js 18+
+* npm
+* Git
+
+---
+
+# 🚀 Installation
+
+## Backend Setup
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+## Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+# 🔐 Environment Variables
+
+## Backend (`backend/.env`)
 
 ```
+DEBUG=True
+SECRET_KEY=your-secret-key
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+DATABASE_URL=sqlite:///db.sqlite3
+```
+
+## Frontend (`frontend/.env`)
+
+```
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+```
+
+---
+
+# 📁 Project Structure
+
+```
+backend/
+│   manage.py
+│   community_path/
+│   api/
+│       models.py
+│       serializers.py
+│       views.py
+│       logic/
+frontend/
+│   src/
+│       api/
+│       pages/
+│       components/
+│       context/
+```
+
+---
+
+# 🔌 API Endpoints
+
+## 🔑 Authentication
+
+### Register
+
+```
+POST /auth/register/
+```
+
+### Login
+
+```
+POST /auth/login/
+```
+
+**Headers:**
+
+```
+Authorization: Token <token>
+```
+
+---
+
+## 📝 Onboarding
+
+### Step 1 — Submit Problem
+
+```
+POST /onboard/step1/
+```
+
+Example Request:
+
+```json
+{
+  "problem_description": "River contamination in my community"
+}
+```
+
+Example Response:
+
+```json
+{
+  "detected_sdg": "SDG 6: Clean Water",
+  "detected_gcgo": "Urbanization"
+}
+```
+
+### Step 2 — Submit Grades
+
+```
+POST /onboard/step2/
+```
+
+### Generate Match
+
+```
+GET /match/generate/
+```
+
+Example Response:
+
+```json
+{
+  "tier_1": [
+    {
+      "programme": "BSc Environmental Science",
+      "reason": "Direct match to SDG 6"
+    }
+  ],
+  "tier_2": [...]
+}
+```
+
+---
+
+# 💾 Database Models
+
+## User
+
+| Field     | Type    | Description          |
+| --------- | ------- | -------------------- |
+| email     | String  | Unique student email |
+| full_name | String  | Student’s name       |
+| is_active | Boolean | Account status       |
+
+## CommunityProblem
+
+| Field         | Type   | Description             |
+| ------------- | ------ | ----------------------- |
+| description   | Text   | Student’s problem story |
+| detected_sdg  | String | Auto-mapped SDG         |
+| detected_gcgo | String | Auto-mapped GCGO        |
+
+## AcademicProfile
+
+| Field     | Type    | Description      |
+| --------- | ------- | ---------------- |
+| grades    | JSON    | Subject → Grade  |
+| aggregate | Integer | Calculated score |
+
+---
+
+# 🛡 Security Features
+
+* Argon2 password hashing
+* Rate limiting for authentication
+* CORS strict whitelisting
+* Validation at serializer level
+* HTTPS-ready for production
+
+---
+
+# ⚠️ Known Limitations
+
+* SDG/GCGO tagging is rule-based; ML version planned
+* Programme list currently optimized for Ghanaian universities
+* Offline mode not yet implemented
+
+---
+
+# 🗺 Roadmap
+
+* [ ] Machine-learning tagging engine
+* [ ] Mentor marketplace
+* [ ] Offline mobile web app
+* [ ] University integration API
+* [ ] Multi-language support
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome.
+Please open an issue before submitting PRs.
+
+---
+
+# 📄 License
+
+Licensed under the **MIT License**.
+
+---
+
+# 👥 Author
+
+**The Community Path Team**
+*Helping students find purpose — one match at a time.*
+
+---
