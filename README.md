@@ -376,11 +376,3 @@ Licensed under the **MIT License**.
 *Helping students find purpose — one match at a time.*
 
 ---
-
-If you'd like, I can also:
-
-✅ generate an architecture diagram
-✅ generate badges with custom branding
-✅ create `/docs` subfiles (problem_statement.md, architecture.md, api_reference.md)
-
-Just tell me!
