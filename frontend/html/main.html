@@ -1,157 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Dashboard - The Community Path Project</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Global Stylesheet (for font) -->
-    <link rel="stylesheet" href="/static/css/style.css">
-    
-    <!-- Dashboard-Specific Stylesheet -->
-    <link rel="stylesheet" href="/static/css/dashboard.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Step 1 — Identify a Problem</title>
+
+  <!-- Link CSS (same folder) -->
+  <link rel="stylesheet" href="step1.css">
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body>
+  <main class="wrap" role="main">
+    <button id="backBtn" class="back">← Back to Roadmap</button>
 
-    <!-- 
-      Main Application Card 
-      This uses the .card class from our dashboard.css
-    -->
-    <div class="card bg-white w-full max-w-lg shadow-xl rounded-lg overflow-hidden">
-        
-        <!-- Card Header -->
-        <header class="bg-gray-50 border-b border-gray-200 p-6">
-            <div class="flex justify-between items-center">
-                <a href="/" class="flex items-center space-x-2">
-                    <img src="/static/images/logo.png" alt="Logo" class="h-10 w-auto">
-                    <span class="font-semibold text-gray-700">My Dashboard</span>
-                </a>
-                <!-- We will add a real logout link later -->
-                <a href="/" class="text-sm font-medium text-gray-600 hover:text-indigo-700">
-                    Log Out
-                </a>
-            </div>
-        </header>
+    <header class="header">
+      <h1>Step 1: Identify a Problem</h1>
+      <p class="lead">Tap each animated visual to reveal its details. Tap again to hide.</p>
+    </header>
 
-        <!-- 
-          Flask Flash Messages
-          This block will display the "Welcome back, {username}!" message
-          This now serves as our main welcome.
-        -->
+    <section class="phases">
 
-        <!-- 
-          Main App Container
-          This is where the onboarding steps will load.
-        -->
-        <main id="app-container" class="p-8 pt-0"> <!-- Reduced top padding -->
-            
-            <!-- 
-              UPDATED: New, simplified, and centered welcome
-            -->
-            <div id="welcome-screen" class="text-center">
-                <h1 class="text-2xl font-bold text-gray-900">
-                    Are you ready to find a community problem?
-                </h1>
-                
-                <p class="text-gray-600 mt-4 mb-6">
-                    Click each step in the roadmap to see the details.
-                </p>
+      <!-- PHASE 1 -->
+      <article class="phase" id="phase1">
+        <button class="anim-button" aria-expanded="false" aria-controls="phase1-content" data-phase="1">
+          <!-- SVG Animation: organic morph + rotating ring -->
+          <svg id="phase1-svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Phase one animation: learning and inspiration">
+            <!-- rotating ring -->
+            <g class="ring">
+              <circle cx="60" cy="60" r="34" fill="none" stroke="url(#grad1)" stroke-width="3" stroke-linecap="round"/>
+            </g>
 
-                <!-- 
-                  NEW: Interactive Roadmap
-                -->
-                <div id="roadmap-container" class="space-y-2 text-left">
-                    
-                    <!-- Step 1 -->
-                    <div class="roadmap-item">
-                        <button class="roadmap-toggle">
-                            <span class="font-semibold text-indigo-700">Step 1: Identify a Problem</span>
-                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                            </svg>
-                        </button>
-                        <div class="roadmap-content">
-                            <p class="text-gray-700">Start by identifying a specific community problem you are passionate about solving.</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 2 -->
-                    <div class="roadmap-item">
-                        <button class="roadmap-toggle">
-                            <span class="font-semibold text-indigo-700">Step 2: Explore & Align</span>
-                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                            </svg>
-                        </button>
-                        <div class="roadmap-content">
-                            <p class="text-gray-700">We link your problem to your personal curiosity, UN SDGs, and other global challenges & opportunities.</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 3 -->
-                    <div class="roadmap-item">
-                        <button class="roadmap-toggle">
-                            <span class="font-semibold text-indigo-700">Step 3: Check Academic Reality</span>
-                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                            </svg>
-                        </button>
-                        <div class="roadmap-content">
-                            <p class="text-gray-700">Filter your options based on academic viability, program requirements, and your own strengths.</p>
-                        </div>
-                    </div>
+            <!-- morphing blob (path) -->
+            <g class="blob" transform="translate(0,0)">
+              <path class="blob-path" d="M60,38 C76,38 92,52 88,68 C84,84 68,92 52,88 C36,84 28,68 32,52 C36,36 44,38 60,38 Z" fill="#FF4081" opacity="0.95"/>
+            </g>
 
-                    <!-- Step 4 -->
-                    <div class="roadmap-item">
-                        <button class="roadmap-toggle">
-                            <span class="font-semibold text-indigo-700">Step 4: Get Your Match</span>
-                            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                            </svg>
-                        </button>
-                        <div class="roadmap-content">
-                            <p class="text-gray-700">Receive a Tier 1 (Ideal) or Tier 2 (Complementary) academic path to start your journey.</p>
-                        </div>
-                    </div>
+            <!-- defs -->
+            <defs>
+              <linearGradient id="grad1" x1="0" x2="1">
+                <stop offset="0%" stop-color="#FFB6C1"/>
+                <stop offset="100%" stop-color="#FF4081"/>
+              </linearGradient>
+            </defs>
+          </svg>
 
-                </div>
-                
-                <a href="/onboarding_step1" class="form-button w-full text-center mt-8">
-                    Let's Go! (Start Step 1)
-                </a>
-            </div>
-            
-        </main>
+          <span class="phase-heading">
+            Phase 1 — Learning & Inspiration
+          </span>
+        </button>
 
+        <div id="phase1-content" class="phase-content" hidden>
+          <ul>
+            <li>Review relevant UN SDGs (1–17) and local statistics.</li>
+            <li>Collect short examples of solved problems from nearby communities.</li>
+            <li>Capture quick notes on what interests you and why.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- PHASE 2 -->
+      <article class="phase" id="phase2">
+        <button class="anim-button" aria-expanded="false" aria-controls="phase2-content" data-phase="2">
+          <!-- SVG Animation: orbiting dots + central hexagon rotate -->
+          <svg id="phase2-svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Phase two animation: identification and output">
+            <!-- central hexagon -->
+            <g class="hex-wrap" transform="translate(60,60)">
+              <polygon class="hex" points="0,-28 24,-14 24,14 0,28 -24,14 -24,-14" fill="#00C4CC" opacity="0.95"/>
+            </g>
+
+            <!-- orbiting dots -->
+            <g class="orbits" fill="#00C4CC">
+              <circle class="dot d1" cx="60" cy="18" r="3"/>
+              <circle class="dot d2" cx="98" cy="60" r="3"/>
+              <circle class="dot d3" cx="60" cy="102" r="3"/>
+              <circle class="dot d4" cx="22" cy="60" r="3"/>
+            </g>
+          </svg>
+
+          <span class="phase-heading">
+            Phase 2 — Identification & Output
+          </span>
+        </button>
+
+        <div id="phase2-content" class="phase-content" hidden>
+          <ul>
+            <li>Draft a concise community problem statement (1–2 sentences).</li>
+            <li>List primary stakeholders and who benefits most.</li>
+            <li>Write quick mission and vision seed lines.</li>
+          </ul>
+        </div>
+      </article>
+
+    </section>
+
+    <div class="footer">
+      <button id="completeBtn" class="complete">Complete Step 1 Review →</button>
     </div>
+  </main>
 
-    <!-- 
-      NEW: Inline JavaScript for Interactive Roadmap
-    -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const toggles = document.querySelectorAll('.roadmap-toggle');
-            
-            toggles.forEach(toggle => {
-                toggle.addEventListener('click', () => {
-                    const item = toggle.parentElement;
-                    
-                    // Optional: Close other open items
-                    // document.querySelectorAll('.roadmap-item.open').forEach(openItem => {
-                    //    if (openItem !== item) {
-                    //        openItem.classList.remove('open');
-                    //    }
-                    // });
-                    
-                    // Toggle the clicked item
-                    item.classList.toggle('open');
-                });
-            });
-        });
-    </script>
-
+  <!-- Link JS (same folder) -->
+  <script src="step1.js"></script>
 </body>
 </html>
