@@ -207,21 +207,28 @@ VITE_API_BASE_URL=http://127.0.0.1:8000/api
 # 📁 Project Structure
 
 ```
-backend/
-│   manage.py
-│   community_path/
-│   api/
-│       models.py
-│       serializers.py
-│       views.py
-│       logic/
-frontend/
-│   src/
-│       api/
-│       pages/
-│       components/
-│       context/
-```
+.
+├── backend/                        # Django API
+│   ├── manage.py
+│   ├── community_path/             # Project Settings
+│   │   ├── settings.py             # CORS and App Config
+│   │   └── urls.py                 # Main Router
+│   └── api/                        # Core App
+│       ├── models.py               # Database Models
+│       ├── serializers.py          # JSON Serializers
+│       ├── views.py                # API Logic
+│       └── logic/                  # Matching Algorithms
+│
+└── frontend/                       # React + Vite
+    ├── vite.config.js
+    ├── package.json
+    └── src/
+        ├── main.jsx
+        ├── App.jsx
+        ├── api/                    # Axios setup
+        ├── components/             # Reusable UI
+        ├── pages/                  # Login, Onboarding, Dashboard
+        └── context/                # AuthContext
 
 ---
 
