@@ -1,4 +1,6 @@
 
+---
+
 # **Community Path Project — API & Client Documentation**
 
 > **A purpose-driven guidance platform that connects community problems to academic pathways using SDGs, GCGO, and grade-based programme matching.**
@@ -229,6 +231,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000/api
         ├── components/             # Reusable UI
         ├── pages/                  # Login, Onboarding, Dashboard
         └── context/                # AuthContext
+```
 
 ---
 
