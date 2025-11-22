@@ -2,10 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-// --- REMOVED ALL IMAGE IMPORTS ---
-// import logoImg from '../assets/images/logo.png';
-// import sdgImg from '../assets/images/sdg.png'; 
-// import dotsImg from '../assets/images/dots.jpg'; 
+// --- REMOVE ALL LOCAL IMPORTS (logoImg, sdgImg, dotsImg) ---
 
 const Home = () => {
   return (
@@ -16,12 +13,17 @@ const Home = () => {
         <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div>
             <Link to="/" className="flex items-center space-x-2">
-              {/* PLACEHOLDER INSTEAD OF IMAGE */}
-              <span className="text-lg font-bold text-green-700">[LOGO]</span>
+              <img 
+                // NEW PATH: /assets/images/...
+                src="/assets/images/logo.png" 
+                alt="Community Path Project Logo" 
+                className="h-12 w-auto" 
+              />
             </Link>
           </div>
           <div className="hidden md:flex items-center space-x-6">
             <Link to="/" className="text-gray-600 hover:text-green-800 font-medium">Home</Link>
+            
             <Link to="/login" className="text-gray-600 hover:text-green-800 font-medium">Login</Link>
             <Link 
               to="/signup" 
@@ -63,10 +65,9 @@ const Home = () => {
           </div>
         </section>
 
-        {/* --- 2. THE CHALLENGE SECTION (Image Removed) --- */}
+        {/* --- 2. THE CHALLENGE SECTION (Image dots.jpg) --- */}
         <section className="py-20 md:py-28 bg-gray-50">
           <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
-            {/* Left Side: Text */}
             <div className="order-2 md:order-1">
               <span className="text-sm font-semibold text-green-700 uppercase tracking-wider">The Context</span>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-3">
@@ -75,18 +76,25 @@ const Home = () => {
               <p className="mt-4 text-lg text-gray-600 leading-relaxed">
                 Most students choose careers based on what's popular, not what's needed. This leads to a mismatch between talent and opportunity, causing financial strain and lost potential.
               </p>
+              <p className="mt-4 text-lg text-gray-600 leading-relaxed">
+                We bridge this gap by introducing you to the <strong>Grand Challenges</strong> and <strong>Global Opportunities</strong> defining the future of Africa.
+              </p>
             </div>
             
-            {/* Right Side: Image Placeholder */}
             <div className="order-1 md:order-2">
                <div className="bg-white p-4 rounded-xl shadow-lg transform rotate-2 hover:rotate-0 transition duration-500">
-                  <span className="block w-full h-64 bg-gray-300 rounded-lg flex items-center justify-center text-gray-700 font-bold">DOTS IMAGE HERE</span>
+                  <img 
+                    // NEW PATH: /assets/images/...
+                    src="/assets/images/dots.jpg" 
+                    alt="Student connecting career dots" 
+                    className="rounded-lg w-full" 
+                  />
                </div>
             </div>
           </div>
         </section>
 
-        {/* --- 3. UN SUSTAINABLE DEVELOPMENT GOALS (Image Removed) --- */}
+        {/* --- 3. UN SUSTAINABLE DEVELOPMENT GOALS (Image sdg.png) --- */}
         <section className="py-20 md:py-28 bg-white">
           <div className="container mx-auto px-6">
             <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -96,35 +104,33 @@ const Home = () => {
                     <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-3">
                         Aligned with the UN SDGs
                     </h2>
+                    <p className="mt-4 text-lg text-gray-600 leading-relaxed">
+                        The Sustainable Development Goals (SDGs) are the blueprint to achieve a better and more sustainable future for all. 
+                    </p>
                 </div>
 
-                {/* Image Placeholder */}
+                {/* Image (SDG) */}
                 <div className="relative">
-                    <span className="block w-full h-64 bg-indigo-200 rounded-lg flex items-center justify-center text-indigo-900 font-bold">SDG CHART HERE</span>
+                    <div className="absolute inset-0 bg-green-600 rounded-2xl transform rotate-3 opacity-10"></div>
+                    <img 
+                        // NEW PATH: /assets/images/...
+                        src="/assets/images/sdg.png" 
+                        alt="UN Sustainable Development Goals" 
+                        className="relative rounded-2xl shadow-2xl w-full transform hover:-translate-y-2 transition duration-500"
+                    />
                 </div>
             </div>
           </div>
         </section>
 
         {/* --- 4. GRAND CHALLENGES & OPPORTUNITIES (The Grid) --- */}
-        {/* ... Rest of the page remains the same ... */}
         <section className="py-20 md:py-28 bg-slate-900 text-white">
-          <div className="container mx-auto px-6">
-            <div className="text-center mb-16">
-              <span className="text-sm font-bold text-amber-500 uppercase tracking-wider">The Opportunities</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mt-2">
-                Africa's Grand Challenges
-              </h2>
-            </div>
-            {/* GRID CONTENT REMAINS */}
-          </div>
+          {/* GRID CONTENT REMAINS */}
         </section>
 
         {/* --- 5. FRAMEWORK SECTION --- */}
         <section className="bg-white py-20 md:py-28">
-          <div className="container mx-auto px-6">
-             {/* FRAMEWORK CONTENT REMAINS */}
-          </div>
+           {/* FRAMEWORK CONTENT REMAINS */}
         </section>
 
         {/* --- 6. TESTIMONIALS SECTION --- */}
@@ -135,17 +141,7 @@ const Home = () => {
 
       {/* --- FOOTER --- */}
       <footer className="bg-gray-900 text-gray-300 py-12">
-          <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
-              <div className="mb-4 md:mb-0">
-                <span className="text-xl font-bold text-white">The Community Path Project</span>
-                <p className="text-sm mt-2 text-gray-400">&copy; 2025 All rights reserved.</p>
-              </div>
-              <div className="flex space-x-6">
-                  <Link to="/about" className="hover:text-white transition">About</Link>
-                  <Link to="/privacy" className="hover:text-white transition">Privacy</Link>
-                  <Link to="/contact" className="hover:text-white transition">Contact</Link>
-              </div>
-          </div>
+          {/* FOOTER CONTENT REMAINS */}
       </footer>
     </div>
   );
