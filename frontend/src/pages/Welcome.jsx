@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWelcomeMessage } from '../services/api';
-import logoImg from '../assets/images/logo.png';
+// NOTE: Deleted import logoImg from '../assets/images/logo.png'; <--- THIS WAS THE ERROR
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -19,11 +19,13 @@ const Welcome = () => {
     if (isFirstTime) {
       const fetchMessage = async () => {
         setLoading(true);
+        // Call our Django API with the REAL username
         const msg = await getWelcomeMessage(username);
         setMotivation(msg);
         setLoading(false);
       };
       
+      // Slight delay to make the "Thinking" animation feel real/premium
       setTimeout(() => {
         fetchMessage();
       }, 800);
@@ -32,9 +34,9 @@ const Welcome = () => {
     }
   }, [isFirstTime, username]);
 
-  // --- HANDLERS (FIXED) ---
+  // --- HANDLERS ---
   const handleStart = () => {
-    // FIX: Navigate back to the main user hub/dashboard to keep the app stable
+    // FIX: Navigate back to the main user hub/dashboard for now
     navigate('/dashboard'); 
   };
 
@@ -43,9 +45,9 @@ const Welcome = () => {
       
       <div className="card bg-white w-full max-w-md p-8 rounded-xl shadow-lg border border-gray-200 text-center">
         
-        {/* Logo */}
+        {/* Logo (Using correct absolute path) */}
         <img 
-          src={logoImg} 
+          src="/assets/images/logo.png" 
           alt="Community Path Logo" 
           className="h-16 w-auto mx-auto mb-6"
         />
@@ -59,11 +61,13 @@ const Welcome = () => {
             {/* THE AI MESSAGE AREA */}
             <div className="my-8 min-h-[100px] flex items-center justify-center">
               {loading ? (
+                // Skeleton "Thinking" Animation
                 <div className="w-full max-w-xs space-y-3 opacity-50">
                   <div className="h-4 bg-gray-300 rounded animate-pulse w-3/4 mx-auto"></div>
                   <div className="h-4 bg-gray-300 rounded animate-pulse w-1/2 mx-auto"></div>
                 </div>
               ) : (
+                // The Actual Message
                 <h1 className="text-2xl font-bold text-gray-900 leading-snug">
                   "{motivation}"
                 </h1>
