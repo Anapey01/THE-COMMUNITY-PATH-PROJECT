@@ -2,8 +2,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-// --- REMOVE ALL LOCAL IMPORTS (logoImg, sdgImg, dotsImg) ---
-
 const Home = () => {
   return (
     <div className="bg-gray-50 text-gray-800 font-sans">
@@ -14,7 +12,6 @@ const Home = () => {
           <div>
             <Link to="/" className="flex items-center space-x-2">
               <img 
-                // NEW PATH: /assets/images/...
                 src="/assets/images/logo.png" 
                 alt="Community Path Project Logo" 
                 className="h-12 w-auto" 
@@ -65,7 +62,7 @@ const Home = () => {
           </div>
         </section>
 
-        {/* --- 2. THE CHALLENGE SECTION (Image dots.jpg) --- */}
+        {/* --- 2. THE CHALLENGE SECTION --- */}
         <section className="py-20 md:py-28 bg-gray-50">
           <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
             <div className="order-2 md:order-1">
@@ -84,7 +81,6 @@ const Home = () => {
             <div className="order-1 md:order-2">
                <div className="bg-white p-4 rounded-xl shadow-lg transform rotate-2 hover:rotate-0 transition duration-500">
                   <img 
-                    // NEW PATH: /assets/images/...
                     src="/assets/images/dots.jpg" 
                     alt="Student connecting career dots" 
                     className="rounded-lg w-full" 
@@ -94,11 +90,10 @@ const Home = () => {
           </div>
         </section>
 
-        {/* --- 3. UN SUSTAINABLE DEVELOPMENT GOALS (Image sdg.png) --- */}
+        {/* --- 3. UN SUSTAINABLE DEVELOPMENT GOALS (SDGs) --- */}
         <section className="py-20 md:py-28 bg-white">
           <div className="container mx-auto px-6">
             <div className="grid md:grid-cols-2 gap-12 items-center">
-                {/* Text */}
                 <div>
                     <span className="text-sm font-semibold text-green-700 uppercase tracking-wider">Global Framework</span>
                     <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-3">
@@ -109,11 +104,9 @@ const Home = () => {
                     </p>
                 </div>
 
-                {/* Image (SDG) */}
                 <div className="relative">
                     <div className="absolute inset-0 bg-green-600 rounded-2xl transform rotate-3 opacity-10"></div>
                     <img 
-                        // NEW PATH: /assets/images/...
                         src="/assets/images/sdg.png" 
                         alt="UN Sustainable Development Goals" 
                         className="relative rounded-2xl shadow-2xl w-full transform hover:-translate-y-2 transition duration-500"
@@ -125,12 +118,20 @@ const Home = () => {
 
         {/* --- 4. GRAND CHALLENGES & OPPORTUNITIES (The Grid) --- */}
         <section className="py-20 md:py-28 bg-slate-900 text-white">
-          {/* GRID CONTENT REMAINS */}
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <span className="text-sm font-bold text-amber-500 uppercase tracking-wider">The Opportunities</span>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mt-2">
+                Africa's Grand Challenges
+              </h2>
+            </div>
+            {/* GRID CONTENT REMAINS */}
+          </div>
         </section>
 
         {/* --- 5. FRAMEWORK SECTION --- */}
         <section className="bg-white py-20 md:py-28">
-           {/* FRAMEWORK CONTENT REMAINS */}
+          {/* FRAMEWORK CONTENT REMAINS */}
         </section>
 
         {/* --- 6. TESTIMONIALS SECTION --- */}
