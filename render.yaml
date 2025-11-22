@@ -1,0 +1,43 @@
+# render.yaml - Defines Services for Render Deployment
+
+services:
+  # ----------------------------------------------------
+  # 1. WEB SERVICE (Django API)
+  # ----------------------------------------------------
+  - type: web
+    name: community-path-backend
+    env: python
+    # Specify the directory containing requirements.txt and manage.py
+    rootDir: backend/
+    # Runs the custom build script we created
+    buildCommand: "./build.sh"
+    # Starts Gunicorn web server
+    startCommand: "gunicorn community_path.wsgi:application"
+    healthCheckPath: /admin/
+    # Expose port 8000 (standard for Django/Gunicorn)
+    port: 8000
+    plan: free # Use 'standard' or 'pro' for production traffic
+
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: community-path-backend_db
+          property: connectionString
+      - key: GEMINI_API_KEY
+        value: "AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc" # Load your key here
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False" # IMPORTANT: Turn off debugging in production
+      - key: CORS_ALLOWED_ORIGINS
+        # Allow Vercel or your specific domain to connect
+        value: "https://your-frontend-app.vercel.app,http://localhost:5173" 
+      - key: WEB_CONCURRENCY
+        value: 1
+
+# ----------------------------------------------------
+# 2. DATABASE SERVICE (PostgreSQL)
+# ----------------------------------------------------
+databases:
+  - name: community-path-backend_db
+    plan: free # Use 'standard' or 'pro' for production
