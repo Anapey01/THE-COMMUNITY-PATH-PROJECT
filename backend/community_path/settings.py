@@ -1,13 +1,15 @@
-# backend/community_path/settings.py
 from pathlib import Path
+import os # Import OS module
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 1. SECURITY SETTINGS
 SECRET_KEY = 'your-very-secret-key-change-this-now'
-DEBUG = True
-ALLOWED_HOSTS = ['*'] 
+# In production on Render, DEBUG should be False
+DEBUG = True 
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'your-render-app-name.onrender.com'] # <--- UPDATED: Include Render Domain
 
-# 2. APPLICATION DEFINITION (FIXES FAILS 4, 5, 6)
+# 2. APPLICATION DEFINITION 
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -16,14 +18,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
-    'rest_framework',            
-    'rest_framework.authtoken',         
-    'community_path.api',     
+    'rest_framework', 
+    'rest_framework.authtoken', 
+    'community_path.api', 
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', # MUST be first
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # <--- ADDED: For production static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -45,14 +48,21 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # 5. REST FRAMEWORK CONFIGURATION
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework.authentication.TokenAuthentication', 'rest_framework.authentication.SessionAuthentication',],}
-# ... (rest of standard Django settings)
+
+# 6. STATIC FILES (REQUIRED FOR RENDER/PRODUCTION)
+# The URL to serve static files (CSS, JS, etc.)
 STATIC_URL = 'static/'
+# The directory where static files will be collected for deployment
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Use WhiteNoise to compress and cache static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
+# TIMEZONE AND GENERAL
 TIME_ZONE = 'Africa/Accra' 
 USE_I18N = True
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ... existing code ...
-
-# GEMINI API KEY
+# GEMINI API KEY (Keep this secret in production using environment variables)
 GEMINI_API_KEY = 'AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc'
