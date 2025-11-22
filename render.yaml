@@ -9,14 +9,13 @@ services:
     env: python
     # Specify the directory containing requirements.txt and manage.py
     rootDir: backend/
-    # Runs the custom build script we created
-    buildCommand: "./build.sh"
+    # Runs the custom build script we created (build.sh)
+    buildCommand: "./build.sh" 
     # Starts Gunicorn web server
     startCommand: "gunicorn community_path.wsgi:application"
     healthCheckPath: /admin/
-    # Expose port 8000 (standard for Django/Gunicorn)
     port: 8000
-    plan: free # Use 'standard' or 'pro' for production traffic
+    plan: free 
 
     envVars:
       - key: DATABASE_URL
@@ -24,14 +23,14 @@ services:
           name: community-path-backend_db
           property: connectionString
       - key: GEMINI_API_KEY
-        value: "AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc" # Load your key here
+        value: "AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc" # REPLACE WITH RENDER SECRET LATER
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
-        value: "False" # IMPORTANT: Turn off debugging in production
+        value: "False" # IMPORTANT: Turns off debugging in production
       - key: CORS_ALLOWED_ORIGINS
-        # Allow Vercel or your specific domain to connect
-        value: "https://your-frontend-app.vercel.app,http://localhost:5173" 
+        # Allows Vercel frontend and local development to connect
+        value: "https://the-community-path-project.vercel.app,http://localhost:5173" 
       - key: WEB_CONCURRENCY
         value: 1
 
@@ -40,4 +39,4 @@ services:
 # ----------------------------------------------------
 databases:
   - name: community-path-backend_db
-    plan: free # Use 'standard' or 'pro' for production
+    plan: free # Starter database plan
