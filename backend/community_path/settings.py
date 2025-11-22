@@ -51,3 +51,8 @@ TIME_ZONE = 'Africa/Accra'
 USE_I18N = True
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ... existing code ...
+
+# GEMINI API KEY
+GEMINI_API_KEY = 'AIzaSyAKpsPDtMTjbdkoyLLBf9y-J3rOS5mkyEc'

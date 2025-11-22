@@ -8,12 +8,17 @@ from rest_framework.authtoken.models import Token
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.conf import settings  # <--- NEW: Needed for API Key
+
+# --- NEW IMPORTS FOR AI ---
+import google.generativeai as genai
+import random
+# --------------------------
 
 # Imports adjusted: Removed Match
 from .models import OnboardingResult 
 # Imports adjusted: Removed MatchSerializer and matching logic
 from .serializers import UserSerializer, LoginSerializer, OnboardingSerializer 
-# Removed: from .logic.match_engine import generate_tiered_match 
 
 
 # --- Signup View: POST /api/auth/signup/ ---
@@ -81,5 +86,55 @@ class OnboardingSubmitView(generics.CreateAPIView):
             'message': 'Onboarding data saved successfully!',
             'user_id': self.request.user.id
         }, status=status.HTTP_201_CREATED)
+
+
+# ==========================================================
+# NEW: AI WELCOME MESSAGE VIEW
+# ==========================================================
+class GenerateWelcomeMessage(APIView):
+    """
+    GET /api/generate-welcome/?username=Name
+    Generates a unique, innovative welcome message using Gemini AI.
+    """
+    def get(self, request):
+        # Get username from query params (e.g., ?username=Ama)
+        username = request.query_params.get('username', 'Friend')
         
-# Removed: MatchGenerateView class
+        try:
+            # 1. Configure Gemini
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel('gemini-pro')
+
+            # 2. Randomize Theme (To prevent repetition)
+            themes = ["Curiosity", "Action", "Community", "Impact", "Roots", "Boldness", "Future"]
+            random_theme = random.choice(themes)
+
+            # 3. The Prompt
+            prompt = f"""
+            You are a wise, innovative mentor for a student in Ghana named {username}.
+            Theme: {random_theme}.
+            
+            Task: Write a ONE sentence welcome message (max 15 words).
+            Tone: Innovative, simple, uplifting, African-futurist.
+            
+            Do NOT use generic clichés. Make it feel personal.
+            Output ONLY the sentence.
+            """
+
+            # 4. Call AI with High Creativity
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=1.1 
+                )
+            )
+
+            return Response({"message": response.text.strip()}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"Gemini Error: {e}")
+            # Fallback if AI fails
+            return Response(
+                {"message": "Every great journey begins with a single step of curiosity."}, 
+                status=status.HTTP_200_OK
+            )
