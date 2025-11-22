@@ -3,8 +3,9 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Welcome from './pages/Welcome'
-// Import new page
 import UserHub from './pages/UserHub' 
+// REMOVED: import OnboardingStep1 from './pages/OnboardingStep1'
+// REMOVED: import OnboardingStep2 from './pages/OnboardingStep2'
 
 import './App.css'
 
@@ -15,12 +16,10 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        
-        {/* The New Hub Page */}
         <Route path="/dashboard" element={<UserHub />} />
-        
-        {/* The AI Welcome Page (Path Finder) */}
         <Route path="/welcome" element={<Welcome />} />
+        
+        {/* REMOVED: /onboarding/step-1 and step-2 routes */}
       </Routes>
     </BrowserRouter>
   )

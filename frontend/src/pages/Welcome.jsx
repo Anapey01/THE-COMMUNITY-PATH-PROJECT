@@ -7,13 +7,9 @@ const Welcome = () => {
   const navigate = useNavigate();
 
   // --- STATE ---
-  // 1. Read the real username saved during Login (default to "Friend" if missing)
   const storedName = localStorage.getItem('username') || "Friend";
-  
-  // 2. Determine if first time (For now we assume true to show the AI message)
-  // In a real app, you might check a 'hasStarted' flag in localStorage
-  const [isFirstTime, setIsFirstTime] = useState(true); 
-  const [username, setUsername] = useState(storedName); 
+  const [isFirstTime] = useState(true); 
+  const [username] = useState(storedName); 
   
   const [motivation, setMotivation] = useState("");
   const [loading, setLoading] = useState(true);
@@ -23,13 +19,11 @@ const Welcome = () => {
     if (isFirstTime) {
       const fetchMessage = async () => {
         setLoading(true);
-        // Call our Django API with the REAL username
         const msg = await getWelcomeMessage(username);
         setMotivation(msg);
         setLoading(false);
       };
       
-      // Slight delay to make the "Thinking" animation feel real/premium
       setTimeout(() => {
         fetchMessage();
       }, 800);
@@ -38,9 +32,10 @@ const Welcome = () => {
     }
   }, [isFirstTime, username]);
 
-  // --- HANDLERS ---
+  // --- HANDLERS (FIXED) ---
   const handleStart = () => {
-    navigate('/onboarding/step-1'); // We will build this next!
+    // FIX: Navigate back to the main user hub/dashboard to keep the app stable
+    navigate('/dashboard'); 
   };
 
   return (
@@ -64,13 +59,11 @@ const Welcome = () => {
             {/* THE AI MESSAGE AREA */}
             <div className="my-8 min-h-[100px] flex items-center justify-center">
               {loading ? (
-                // Skeleton "Thinking" Animation
                 <div className="w-full max-w-xs space-y-3 opacity-50">
                   <div className="h-4 bg-gray-300 rounded animate-pulse w-3/4 mx-auto"></div>
                   <div className="h-4 bg-gray-300 rounded animate-pulse w-1/2 mx-auto"></div>
                 </div>
               ) : (
-                // The Actual Message
                 <h1 className="text-2xl font-bold text-gray-900 leading-snug">
                   "{motivation}"
                 </h1>
